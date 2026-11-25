@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useProjectStore } from "../../store/projectStore";
 
 /**
@@ -35,7 +35,7 @@ export function ConflictoDialog() {
             La version del servidor avanzo mientras editabas (<span className="mono">revision {conflicto.revision ?? "?"}</span>). Tu trabajo sigue aqui:
             elige como continuar.
           </p>
-          <ul className="issue-list">
+          <ul className="issue-list cf-list">
             <li><strong>Recargar el servidor</strong>: ves lo ultimo de la otra persona. Tus cambios locales de esta sesion se descartan.</li>
             <li><strong>Guardar encima</strong>: tu version actual pasa a ser la nueva revision; los cambios de la otra persona quedan en el historial de revisiones.</li>
           </ul>

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 
@@ -12,6 +12,7 @@ export function mensajeAuth(msg: string): string {
   if (m.includes("unable to validate email")) return "El correo no tiene un formato valido.";
   if (m.includes("rate limit") || m.includes("too many")) return "Demasiados intentos. Espera un momento e intentalo de nuevo.";
   if (m.includes("signups not allowed")) return "El registro esta deshabilitado en este proyecto.";
+  if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("network request failed")) return "No se pudo conectar con el servidor. Revisa tu conexion e intentalo de nuevo.";
   if (m.includes("auth session missing")) return "Tu sesion expiro. Vuelve a iniciar sesion.";
   return msg;
 }

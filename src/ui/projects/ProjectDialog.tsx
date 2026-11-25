@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   actualizarMeta,
   agregarMiembro,
@@ -206,7 +206,7 @@ export function ProjectDialog({ proyectoId, nombre, esMio, puedeEditar, visibili
         {tab === "revisiones" && (
           <section className="pd-section" aria-labelledby="pd-rev">
             <h3 id="pd-rev">Historial de revisiones</h3>
-            <p className="muted small">Cada guardado crea una revision con fecha y autor. Restaurar una copia su data como una revision nueva.</p>
+            <p className="muted small">Cada guardado crea una revision con fecha y autor. Restaurar una revision guarda su contenido como una revision nueva.</p>
             {revisiones === null ? <p className="muted small">Cargando revisiones...</p> : revisiones.length === 0 ? (
               <p className="muted small">Aun no hay revisiones guardadas.</p>
             ) : (
