@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 2,
+  "id": "prj_pagos",
+  "nombre": "Plataforma de Pagos",
+  "descripcion": "Seguimiento de arquitectura del dominio de pagos. Datos de ejemplo del prototipo: edítame.",
+  "creadoEn": "2026-11-02T09:00:00Z",
+  "actualizadoEn": "2026-11-20T15:42:00Z",
+  "nodos": [
+    {
+      "id": "nd_web", "parentId": null, "tipo": "basico", "categoria": "servicio",
+      "titulo": "Portal web de clientes", "estado": "en-progreso",
+      "descripcion": "Frontend donde el cliente inicia, confirma y consulta pagos.\n\n## Alcance\n- Flujo de pago con autenticación 3DS\n- Historial y comprobantes\n- Mensajes de error accionables\n\n## Pendiente de definir\nManejo de sesión expirada durante el pago.",
+      "responsables": ["equipo-frontend"], "posicion": { "x": 0, "y": 40 }, "colapsado": false,
+      "creadoEn": "2026-11-02T09:10:00Z", "actualizadoEn": "2026-11-18T10:00:00Z"
+    },
+    {
+      "id": "nd_mcp", "parentId": null, "tipo": "basico", "categoria": "mcp",
+      "titulo": "MCP de consulta de pagos", "estado": "diseno",
+      "descripcion": "Expone estado y detalle de pagos a asistentes internos, solo lectura.\n\n## Herramientas previstas\n- `consultar_pago(id)`\n- `listar_pagos(cliente, desde, hasta)`\n\nNo expone datos de tarjeta en ningún caso.",
+      "responsables": ["equipo-plataforma", "arquitectura"], "posicion": { "x": 0, "y": 320 }, "colapsado": false,
+      "creadoEn": "2026-11-09T09:00:00Z", "actualizadoEn": "2026-11-17T16:00:00Z"
+    },
+    {
+      "id": "nd_api", "parentId": null, "tipo": "subflujo", "categoria": "servicio",
+      "titulo": "API de Pagos", "estado": "en-progreso",
+      "descripcion": "Punto único de entrada para autorizar, consultar y reversar pagos.\n\n## Contrato\nREST sobre HTTPS, versionado por ruta (`/v1`). Todo `POST` exige cabecera de idempotencia.\n\n```http\nPOST /v1/pagos\nIdempotency-Key: 8f1c-2026-11-20-0042\nContent-Type: application/json\n\n{ \"monto\": 125000, \"moneda\": \"COP\", \"cuentaOrigen\": \"****4821\" }\n```\n\n## Objetivos de servicio\n- Disponibilidad 99,95 %\n- Latencia p95 de autorización por debajo de 400 ms",
+      "responsables": ["equipo-backend"], "posicion": { "x": 470, "y": 150 }, "colapsado": false,
+      "creadoEn": "2026-11-02T09:12:00Z", "actualizadoEn": "2026-11-19T08:30:00Z"
+    },
+    {
+      "id": "nd_bus", "parentId": null, "tipo": "basico", "categoria": "integracion",
+      "titulo": "Bus de eventos de pagos", "estado": "diseno",
+      "descripcion": "Tópicos donde se publican los hechos del ciclo de vida de un pago.\n\n## Tópicos\n- `pagos.autorizado`\n- `pagos.rechazado`\n- `pagos.reversado`\n\nLos mensajes son inmutables y llevan versión de esquema.",
+      "responsables": ["equipo-plataforma"], "posicion": { "x": 890, "y": 20 }, "colapsado": false,
+      "creadoEn": "2026-11-04T10:00:00Z", "actualizadoEn": "2026-11-16T09:00:00Z"
+    },
+    {
+      "id": "nd_dec_idem", "parentId": null, "tipo": "basico", "categoria": "decision",
+      "titulo": "Idempotencia por clave de negocio", "estado": "listo",
+      "descripcion": "Decisión: la clave de idempotencia la genera el cliente de la API, no el servidor.\n\n## Por qué\nUn reintento tras timeout no debe duplicar el cobro.\n\n## Consecuencias\n- La API guarda la clave y la respuesta por 24 h\n- Dos claves iguales con cuerpos distintos devuelven `409`",
+      "responsables": ["arquitectura"], "posicion": { "x": 890, "y": 340 }, "colapsado": false,
+      "creadoEn": "2026-11-05T11:00:00Z", "actualizadoEn": "2026-11-05T11:00:00Z"
+    },
+    {
+      "id": "nd_conc", "parentId": null, "tipo": "subflujo", "categoria": "servicio",
+      "titulo": "Conciliación y liquidación", "estado": "idea",
+      "descripcion": "Cruza los pagos autorizados con los extractos de las entidades y genera partidas abiertas.\n\n## Cadencia\nProceso batch diario, ventana 02:00–04:00.",
+      "responsables": ["equipo-operaciones"], "posicion": { "x": 1440, "y": -18 }, "colapsado": false,
+      "creadoEn": "2026-11-10T09:00:00Z", "actualizadoEn": "2026-11-14T09:00:00Z"
+    },
+
+    {
+      "id": "nd_gw", "parentId": "nd_api", "tipo": "basico", "categoria": "servicio",
+      "titulo": "Gateway de entrada", "estado": "listo",
+      "descripcion": "Autentica, aplica límite de tasa y enruta hacia el core.\n\n- OAuth2 client credentials\n- 300 req/min por cliente",
+      "responsables": ["equipo-plataforma"], "posicion": { "x": 0, "y": 160 }, "colapsado": false,
+      "creadoEn": "2026-11-06T09:00:00Z", "actualizadoEn": "2026-11-12T09:00:00Z"
+    },
+    {
+      "id": "nd_core", "parentId": "nd_api", "tipo": "subflujo", "categoria": "servicio",
+      "titulo": "Core de autorización", "estado": "diseno",
+      "descripcion": "Decide si un pago se autoriza: valida reglas, límites y reserva fondos.\n\n## Pipeline\n1. Validar reglas de negocio\n2. Verificar límites del cliente\n3. Reservar fondos en el ledger\n\n```text\nrecibido -> validado -> reservado -> autorizado | rechazado\n```",
+      "responsables": ["equipo-backend"], "posicion": { "x": 420, "y": 160 }, "colapsado": false,
+      "creadoEn": "2026-11-06T09:05:00Z", "actualizadoEn": "2026-11-15T09:00:00Z"
+    },
+    {
+      "id": "nd_anti", "parentId": "nd_api", "tipo": "basico", "categoria": "integracion",
+      "titulo": "Antifraude externo", "estado": "bloqueado",
+      "descripcion": "Evaluación de riesgo en línea por un proveedor externo.\n\nBloqueado: falta el acceso al ambiente sandbox del proveedor.",
+      "responsables": ["equipo-riesgo"], "posicion": { "x": 840, "y": 20 }, "colapsado": false,
+      "creadoEn": "2026-11-06T09:10:00Z", "actualizadoEn": "2026-11-18T09:00:00Z"
+    },
+    {
+      "id": "nd_idemstore", "parentId": "nd_api", "tipo": "basico", "categoria": "repo",
+      "titulo": "Almacén de claves de idempotencia", "estado": "en-progreso",
+      "descripcion": "Guarda clave, huella del cuerpo y respuesta durante 24 h.\n\n```sql\nCREATE TABLE idempotencia (\n  clave text PRIMARY KEY,\n  huella text NOT NULL,\n  respuesta jsonb,\n  expira_en timestamptz NOT NULL\n);\n```",
+      "responsables": ["equipo-backend"], "posicion": { "x": 840, "y": 300 }, "colapsado": false,
+      "creadoEn": "2026-11-07T09:00:00Z", "actualizadoEn": "2026-11-19T09:00:00Z"
+    },
+
+    {
+      "id": "nd_reglas", "parentId": "nd_core", "tipo": "basico", "categoria": "servicio",
+      "titulo": "Validador de reglas", "estado": "en-progreso",
+      "descripcion": "Aplica el catálogo de reglas de negocio antes de autorizar.\n\n- Moneda y monto permitidos\n- Cuenta activa y no bloqueada",
+      "responsables": ["equipo-backend"], "posicion": { "x": 0, "y": 120 }, "colapsado": false,
+      "creadoEn": "2026-11-08T09:00:00Z", "actualizadoEn": "2026-11-17T09:00:00Z"
+    },
+    {
+      "id": "nd_limites", "parentId": "nd_core", "tipo": "basico", "categoria": "servicio",
+      "titulo": "Motor de límites", "estado": "bloqueado",
+      "descripcion": "Calcula el cupo disponible por cliente y segmento.\n\nBloqueado hasta que negocio cierre la tabla de límites por segmento.",
+      "responsables": ["equipo-backend", "negocio-pagos"], "posicion": { "x": 460, "y": 120 }, "colapsado": false,
+      "creadoEn": "2026-11-08T09:10:00Z", "actualizadoEn": "2026-11-18T09:00:00Z"
+    },
+    {
+      "id": "nd_ledger", "parentId": "nd_core", "tipo": "basico", "categoria": "repo",
+      "titulo": "Ledger de reservas", "estado": "idea",
+      "descripcion": "Libro de reservas de fondos con asientos inmutables.",
+      "responsables": ["equipo-backend"], "posicion": { "x": 920, "y": 120 }, "colapsado": false,
+      "creadoEn": "2026-11-08T09:20:00Z", "actualizadoEn": "2026-11-08T09:20:00Z"
+    },
+
+    {
+      "id": "nd_extract", "parentId": "nd_conc", "tipo": "basico", "categoria": "integracion",
+      "titulo": "Extracción de movimientos", "estado": "listo",
+      "descripcion": "Descarga y normaliza los extractos de las entidades.",
+      "responsables": ["equipo-operaciones"], "posicion": { "x": 0, "y": 100 }, "colapsado": false,
+      "creadoEn": "2026-11-10T09:30:00Z", "actualizadoEn": "2026-11-13T09:00:00Z"
+    },
+    {
+      "id": "nd_match", "parentId": "nd_conc", "tipo": "basico", "categoria": "servicio",
+      "titulo": "Motor de cruce", "estado": "diseno",
+      "descripcion": "Cruza pagos y extractos por referencia, monto y fecha.",
+      "responsables": ["equipo-operaciones"], "posicion": { "x": 480, "y": 100 }, "colapsado": false,
+      "creadoEn": "2026-11-10T09:40:00Z", "actualizadoEn": "2026-11-14T09:00:00Z"
+    },
+    {
+      "id": "nd_partidas", "parentId": "nd_conc", "tipo": "basico", "categoria": "otro",
+      "titulo": "Reporte de partidas abiertas", "estado": "idea",
+      "descripcion": "Lista diaria de diferencias para que operaciones las resuelva.",
+      "responsables": ["equipo-operaciones"], "posicion": { "x": 940, "y": 100 }, "colapsado": false,
+      "creadoEn": "2026-11-10T09:50:00Z", "actualizadoEn": "2026-11-10T09:50:00Z"
+    }
+  ],
+  "relaciones": [
+    { "id": "rel_1", "scopeId": null, "sourceId": "nd_web", "targetId": "nd_api", "color": "#352FCC", "estiloLinea": "continua", "puntaInicio": false, "puntaFin": true, "textoCentro": "REST /v1/pagos", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-02T09:30:00Z" },
+    { "id": "rel_2", "scopeId": null, "sourceId": "nd_mcp", "targetId": "nd_api", "color": "#FF6900", "estiloLinea": "discontinua", "puntaInicio": false, "puntaFin": true, "textoCentro": "Lectura de pagos", "textoInicio": "solo lectura", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-09T09:30:00Z" },
+    { "id": "rel_3", "scopeId": null, "sourceId": "nd_api", "targetId": "nd_bus", "color": "#008755", "estiloLinea": "punteada", "puntaInicio": false, "puntaFin": true, "textoCentro": "pagos.*", "textoInicio": "", "textoFin": "Kafka", "colorTextoFin": null, "creadoEn": "2026-11-04T10:30:00Z" },
+    { "id": "rel_4", "scopeId": null, "sourceId": "nd_api", "targetId": "nd_dec_idem", "color": "#C04C36", "estiloLinea": "discontinua", "puntaInicio": false, "puntaFin": true, "textoCentro": "ADR-007", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-05T11:30:00Z" },
+    { "id": "rel_5", "scopeId": null, "sourceId": "nd_bus", "targetId": "nd_conc", "color": "#7A1FFF", "estiloLinea": "continua", "puntaInicio": true, "puntaFin": true, "textoCentro": "pagos.autorizado", "textoInicio": "publica", "textoFin": "consume", "colorTextoFin": "#FF6900", "creadoEn": "2026-11-10T10:00:00Z" },
+
+    { "id": "rel_6", "scopeId": "nd_api", "sourceId": "nd_gw", "targetId": "nd_core", "color": "#4AA1FF", "estiloLinea": "continua", "puntaInicio": false, "puntaFin": true, "textoCentro": "gRPC", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-06T10:00:00Z" },
+    { "id": "rel_7", "scopeId": "nd_api", "sourceId": "nd_core", "targetId": "nd_anti", "color": "#2C2A29", "estiloLinea": "continua", "puntaInicio": false, "puntaFin": true, "textoCentro": "Score de riesgo", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-06T10:10:00Z" },
+    { "id": "rel_8", "scopeId": "nd_api", "sourceId": "nd_core", "targetId": "nd_idemstore", "color": "#867035", "estiloLinea": "punteada", "puntaInicio": false, "puntaFin": false, "textoCentro": "", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-07T10:00:00Z" },
+
+    { "id": "rel_9", "scopeId": "nd_core", "sourceId": "nd_reglas", "targetId": "nd_limites", "color": "#352FCC", "estiloLinea": "continua", "puntaInicio": false, "puntaFin": true, "textoCentro": "Cupo disponible", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-08T10:00:00Z" },
+    { "id": "rel_10", "scopeId": "nd_core", "sourceId": "nd_limites", "targetId": "nd_ledger", "color": "#C04C36", "estiloLinea": "discontinua", "puntaInicio": false, "puntaFin": true, "textoCentro": "", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-08T10:10:00Z" },
+
+    { "id": "rel_11", "scopeId": "nd_conc", "sourceId": "nd_match", "targetId": "nd_extract", "color": "#4666FF", "estiloLinea": "continua", "puntaInicio": false, "puntaFin": true, "textoCentro": "Extractos normalizados", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-10T10:00:00Z" },
+    { "id": "rel_12", "scopeId": "nd_conc", "sourceId": "nd_match", "targetId": "nd_partidas", "color": "#008755", "estiloLinea": "punteada", "puntaInicio": false, "puntaFin": true, "textoCentro": "Diferencias", "textoInicio": "", "textoFin": "", "colorTextoFin": null, "creadoEn": "2026-11-10T10:10:00Z" }
+  ],
+  "tareas": [
+    { "id": "tsk_1", "nodoId": "nd_api", "titulo": "Definir contrato OpenAPI de /v1/pagos", "descripcion": "", "estado": "en-curso", "prioridad": "alta", "responsables": ["equipo-backend"], "venceEn": "2026-11-28", "origen": "local", "externo": null, "creadoEn": "2026-11-07T09:00:00Z", "actualizadoEn": "2026-11-19T08:30:00Z" },
+    { "id": "tsk_2", "nodoId": "nd_api", "titulo": "Definir política de versionado y deprecación", "descripcion": "", "estado": "pendiente", "prioridad": "media", "responsables": ["arquitectura"], "venceEn": null, "origen": "local", "externo": null, "creadoEn": "2026-11-07T09:30:00Z", "actualizadoEn": "2026-11-07T09:30:00Z" },
+    { "id": "tsk_3", "nodoId": "nd_gw", "titulo": "Configurar límite de tasa por cliente", "descripcion": "", "estado": "hecha", "prioridad": "media", "responsables": ["equipo-plataforma"], "venceEn": "2026-11-14", "origen": "local", "externo": null, "creadoEn": "2026-11-06T11:00:00Z", "actualizadoEn": "2026-11-12T09:00:00Z" },
+    { "id": "tsk_4", "nodoId": "nd_anti", "titulo": "Evaluar proveedores y latencia p95", "descripcion": "", "estado": "pendiente", "prioridad": "media", "responsables": ["equipo-riesgo"], "venceEn": "2026-11-12", "origen": "local", "externo": null, "creadoEn": "2026-11-08T10:00:00Z", "actualizadoEn": "2026-11-08T10:00:00Z" },
+    { "id": "tsk_5", "nodoId": "nd_anti", "titulo": "Prueba de concepto en sandbox del proveedor", "descripcion": "Falta el acceso al sandbox.", "estado": "bloqueada", "prioridad": "alta", "responsables": ["equipo-riesgo"], "venceEn": "2026-12-05", "origen": "local", "externo": null, "creadoEn": "2026-11-12T10:00:00Z", "actualizadoEn": "2026-11-18T09:00:00Z" },
+    { "id": "tsk_6", "nodoId": "nd_idemstore", "titulo": "Definir TTL y limpieza de claves expiradas", "descripcion": "", "estado": "en-curso", "prioridad": "media", "responsables": ["equipo-backend"], "venceEn": "2026-11-26", "origen": "local", "externo": null, "creadoEn": "2026-11-13T09:00:00Z", "actualizadoEn": "2026-11-19T09:00:00Z" },
+    { "id": "tsk_7", "nodoId": "nd_reglas", "titulo": "Cerrar catálogo de reglas de validación", "descripcion": "", "estado": "hecha", "prioridad": "alta", "responsables": ["equipo-backend"], "venceEn": "2026-11-15", "origen": "local", "externo": null, "creadoEn": "2026-11-08T11:00:00Z", "actualizadoEn": "2026-11-16T09:00:00Z" },
+    { "id": "tsk_8", "nodoId": "nd_reglas", "titulo": "Reglas de cuentas bloqueadas y embargadas", "descripcion": "", "estado": "en-curso", "prioridad": "media", "responsables": ["equipo-backend"], "venceEn": "2026-11-17", "origen": "local", "externo": null, "creadoEn": "2026-11-12T11:00:00Z", "actualizadoEn": "2026-11-19T09:00:00Z" },
+    { "id": "tsk_9", "nodoId": "nd_limites", "titulo": "Obtener tabla de límites por segmento", "descripcion": "Depende de negocio.", "estado": "bloqueada", "prioridad": "alta", "responsables": ["negocio-pagos"], "venceEn": "2026-12-01", "origen": "local", "externo": null, "creadoEn": "2026-11-12T12:00:00Z", "actualizadoEn": "2026-11-18T09:00:00Z" },
+    { "id": "tsk_10", "nodoId": "nd_ledger", "titulo": "Modelar asientos de reserva y liberación", "descripcion": "", "estado": "pendiente", "prioridad": "media", "responsables": ["equipo-backend"], "venceEn": null, "origen": "local", "externo": null, "creadoEn": "2026-11-12T13:00:00Z", "actualizadoEn": "2026-11-12T13:00:00Z" },
+    { "id": "tsk_11", "nodoId": "nd_web", "titulo": "Implementar desafío 3DS en el flujo de pago", "descripcion": "", "estado": "en-curso", "prioridad": "alta", "responsables": ["equipo-frontend"], "venceEn": "2026-11-27", "origen": "local", "externo": null, "creadoEn": "2026-11-10T09:00:00Z", "actualizadoEn": "2026-11-18T10:00:00Z" },
+    { "id": "tsk_12", "nodoId": "nd_web", "titulo": "Redactar mensajes de error de pago", "descripcion": "", "estado": "pendiente", "prioridad": "baja", "responsables": ["equipo-frontend"], "venceEn": null, "origen": "local", "externo": null, "creadoEn": "2026-11-10T09:30:00Z", "actualizadoEn": "2026-11-10T09:30:00Z" },
+    { "id": "tsk_13", "nodoId": "nd_extract", "titulo": "Soportar formato de extracto de la entidad A", "descripcion": "", "estado": "hecha", "prioridad": "media", "responsables": ["equipo-operaciones"], "venceEn": "2026-11-13", "origen": "local", "externo": null, "creadoEn": "2026-11-10T10:00:00Z", "actualizadoEn": "2026-11-13T09:00:00Z" },
+    { "id": "tsk_14", "nodoId": "nd_match", "titulo": "Definir tolerancia de cruce por monto y fecha", "descripcion": "", "estado": "pendiente", "prioridad": "media", "responsables": ["equipo-operaciones"], "venceEn": null, "origen": "local", "externo": null, "creadoEn": "2026-11-11T09:00:00Z", "actualizadoEn": "2026-11-11T09:00:00Z" },
+    { "id": "tsk_15", "nodoId": "nd_bus", "titulo": "Publicar esquema versionado de eventos", "descripcion": "", "estado": "en-curso", "prioridad": "alta", "responsables": ["equipo-plataforma"], "venceEn": "2026-11-25", "origen": "local", "externo": null, "creadoEn": "2026-11-04T11:00:00Z", "actualizadoEn": "2026-11-16T09:00:00Z" }
+  ],
+  "documentos": [
+    { "id": "doc_1", "nodoId": "nd_api", "tipo": "url", "titulo": "Repositorio api-pagos", "url": "https://git.ejemplo.interno/pagos/api-pagos", "ruta": null, "contenido": null, "cache": null, "actualizadoEn": "2026-11-19T08:30:00Z" },
+    { "id": "doc_2", "nodoId": "nd_api", "tipo": "archivo", "titulo": "Contrato OpenAPI", "url": null, "ruta": "docs/openapi/pagos-v1.yaml", "contenido": null, "cache": null, "actualizadoEn": "2026-11-19T08:30:00Z" },
+    { "id": "doc_3", "nodoId": "nd_core", "tipo": "url", "titulo": "Diseño del core de autorización", "url": "https://git.ejemplo.interno/pagos/core-autorizacion/blob/main/docs/diseno.md", "ruta": null, "contenido": null, "cache": null, "actualizadoEn": "2026-11-15T09:00:00Z" },
+    { "id": "doc_4", "nodoId": "nd_dec_idem", "tipo": "url", "titulo": "ADR-007 Idempotencia", "url": "https://git.ejemplo.interno/arquitectura/adr/blob/main/007-idempotencia.md", "ruta": null, "contenido": null, "cache": null, "actualizadoEn": "2026-11-05T11:00:00Z" },
+    { "id": "doc_5", "nodoId": "nd_web", "tipo": "url", "titulo": "Repositorio portal-clientes", "url": "https://git.ejemplo.interno/pagos/portal-clientes", "ruta": null, "contenido": null, "cache": null, "actualizadoEn": "2026-11-18T10:00:00Z" },
+    { "id": "doc_6", "nodoId": "nd_bus", "tipo": "url", "titulo": "Catálogo de eventos", "url": "https://git.ejemplo.interno/plataforma/eventos/blob/main/README.md", "ruta": null, "contenido": null, "cache": null, "actualizadoEn": "2026-11-16T09:00:00Z" },
+    { "id": "doc_7", "nodoId": "nd_conc", "tipo": "url", "titulo": "Repositorio conciliacion", "url": "https://git.ejemplo.interno/operaciones/conciliacion", "ruta": null, "contenido": null, "cache": null, "actualizadoEn": "2026-11-14T09:00:00Z" }
+  ]
+}
+

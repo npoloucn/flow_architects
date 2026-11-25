@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <!-- Tema antes del primer pintado (sin destello): guardado en localStorage o, en la primera visita, prefers-color-scheme. -->
+    <script>
+      (function () {
+        var t = "light";
+        try {
+          var s = localStorage.getItem("flowarq.tema");
+          t = s === "dark" || s === "light" ? s : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        } catch (e) {}
+        document.documentElement.dataset.theme = t;
+        document.documentElement.style.colorScheme = t;
+      })();
+    </script>
+    <!-- Fondo crítico del primer pintado: mismos valores que --deep y --paper-soft de styles.css. -->
+    <style>
+      html[data-theme="dark"] { background: #272422; }
+      html[data-theme="light"] { background: #f7f7f7; }
+    </style>
+    <title>FlowArquitecture</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

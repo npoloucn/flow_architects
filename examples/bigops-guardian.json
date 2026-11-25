@@ -1,0 +1,1186 @@
+{
+  "schemaVersion": 2,
+  "id": "prj_agentes_bigdata",
+  "nombre": "Agentes BigData",
+  "descripcion": "Arquitectura de los agentes de IA del equipo Big Data; incluye BigOps Guardian, que diagnostica incidentes de Cloudera/CDP en modo solo lectura.",
+  "creadoEn": "2026-09-25T15:28:13.120Z",
+  "actualizadoEn": "2026-09-25T15:28:13.120Z",
+  "nodos": [
+    {
+      "id": "n_entrada",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Entrada de incidentes",
+      "descripcion": "Origen del incidente que dispara al agente.\n\n## Hoy\nEl flujo se dispara con un **payload de incidente inyectado manualmente**: la entrada es simulada y no tiene gobierno corporativo.\n\n## Candidata (sin validar)\nMonitoreo (Dynatrace, CloudWatch) → NIX → Kafka, o consulta directa a Helix. Decisiones D1 a D4 pendientes en el vault.",
+      "estado": "diseno",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 0,
+        "y": 240
+      },
+      "colapsado": false,
+      "icono": "preset:cola-bus",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_bigops_guardian",
+      "parentId": null,
+      "tipo": "subflujo",
+      "categoria": "servicio",
+      "titulo": "BigOps Guardian",
+      "descripcion": "Agente de IA con autonomía controlada que atiende incidentes de plataformas Big Data sobre Cloudera/CDP.\n\n- Opera en **modo solo diagnóstico**: diagnostica, propone un plan y reporta; no ejecuta acciones ni cierra incidentes.\n- MVP vigente: Impala (datacache).\n- Orquestado en n8n (`BigOps_CDP`).",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 620,
+        "y": 200
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_helix",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Helix (ITSM)",
+      "descripcion": "Sistema de incidentes y CMDB.\n\nEl agente lee el incidente y, opcionalmente, el contexto del servidor en la CMDB, a través del MCP. En modo solo diagnóstico **no** resuelve ni modifica incidentes.\n\nLa prueba de usarlo como fuente provisional del trigger sigue en curso.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": -330
+      },
+      "colapsado": false,
+      "icono": "preset:servidor",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_cdp",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "servicio",
+      "titulo": "CDP / Cloudera Manager (Impala)",
+      "descripcion": "Plataforma Big Data a diagnosticar: Data Hubs de CDP y Cloudera Manager.\n\nSe consulta por el MCP en solo lectura (topología, estado de servicios, roles, métricas y logs). Las acciones de ejecución están reservadas para una etapa posterior.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": -130
+      },
+      "colapsado": false,
+      "icono": "preset:servidor",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_llm",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "LLM corporativo",
+      "descripcion": "Modelo de lenguaje corporativo para el razonamiento del agente (modelo configurado: `gpt-5.6-luna`).\n\nLas skills son la única fuente de verdad: el modelo razona, no decide fuera de ellas.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": 70
+      },
+      "colapsado": false,
+      "icono": "preset:api",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_postgres",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Memoria Postgres",
+      "descripcion": "Memoria de conversación del agente en Postgres, con ventana de 10 mensajes.\n\nUna memoria previa es una **pista**, nunca evidencia: el diagnóstico siempre se revalida contra Helix y Cloudera.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": 270
+      },
+      "colapsado": false,
+      "icono": "preset:base-datos",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_bitacora",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Bitácora de incidentes (SharePoint)",
+      "descripcion": "Lista de SharePoint con soluciones validadas de incidentes anteriores.\n\nLa herramienta está conectada al agente, pero la etapa de búsqueda en bitácora **no está habilitada** en modo solo diagnóstico.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": 470
+      },
+      "colapsado": false,
+      "icono": "preset:documento",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_repo_skills",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "repo",
+      "titulo": "Repositorio de skills (Azure DevOps)",
+      "descripcion": "Repositorio `BigOps-Agent-Skills`: conocimiento operativo versionado del agente.\n\nEl agente lo lee en solo lectura; las skills definen diagnóstico, evidencia exigida y formato de salida.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": 670
+      },
+      "colapsado": false,
+      "icono": "preset:repo",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_salida",
+      "parentId": null,
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "Salida: informe y notificación",
+      "descripcion": "Etapa de salida del flujo (nota «Output - Notificación» en n8n).\n\nEl workflow termina entregando el informe como **archivo HTML**. El canal de notificación al usuario (correo u otro) **no aparece en el export**: queda por definir.",
+      "estado": "diseno",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1500,
+        "y": 870
+      },
+      "colapsado": false,
+      "icono": "preset:documento",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_webhook",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Webhook",
+      "descripcion": "Recibe el incidente por POST y dispara el flujo (etapa «Input - Incidente»).\n\nHoy el payload es simulado; la entrada productiva no existe todavía.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 0,
+        "y": 140
+      },
+      "colapsado": false,
+      "icono": "preset:cola-bus",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_ai_agent",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "servicio",
+      "titulo": "AI Agent",
+      "descripcion": "Agente de n8n (etapa «Main»). Su instrucción lo obliga a:\n\n1. Listar el catálogo de skills una vez.\n2. Leer el router de resolución de incidentes antes de actuar.\n3. Seguir las skills de forma estricta, sin usar herramientas que la skill activa no autorice.\n\nLa única respuesta final es la que define la skill de generación de reporte.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1240,
+        "y": 140
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_bancolombia_openai_chat_model",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Bancolombia OpenAI Chat Model",
+      "descripcion": "Modelo de chat corporativo del agente (`gpt-5.6-luna`), caso de uso CDP.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": -250
+      },
+      "colapsado": false,
+      "icono": "preset:api",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_bancolombia_postgres_chat_memory",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Bancolombia Postgres Chat Memory",
+      "descripcion": "Memoria de conversación en Postgres, últimos 10 mensajes, con clave de sesión personalizada.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": -60
+      },
+      "colapsado": false,
+      "icono": "preset:base-datos",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_mcp_client_cdp",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "mcp",
+      "titulo": "MCP Client CDP",
+      "descripcion": "Cliente MCP que expone al agente las herramientas de **Cloudera/CDP y Helix** (autenticación OAuth2 gestionada en n8n).\n\nEn modo solo diagnóstico se permiten solo herramientas de lectura: topología CDP, estado de servicios y roles de Cloudera Manager, métricas/logs/configuración y consulta de incidente y CMDB.\n\nQuedan prohibidas las herramientas de preparación y ejecución de comandos y la de resolución en Helix.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": 340
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_db_bitacoraincidentes",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "DB_BitacoraIncidentes",
+      "descripcion": "Herramienta de SharePoint sobre la bitácora de incidentes (lista `DEV_BitacoraIncidentes`), solo lectura, con tope de resultados.\n\nEs la fuente de soluciones validadas, pero la skill que la consulta no está habilitada en modo solo diagnóstico.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": 520
+      },
+      "colapsado": false,
+      "icono": "preset:documento",
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_listar_skills",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Listar skills",
+      "descripcion": "Sub-workflow como herramienta: lista los archivos de skills del repositorio de skills. **Solo lectura.**\n\nDebe llamarse antes de cualquier diagnóstico, acción o recomendación.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": 700
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_obtener_skill",
+      "parentId": "n_bigops_guardian",
+      "tipo": "basico",
+      "categoria": "integracion",
+      "titulo": "Obtener skill",
+      "descripcion": "Sub-workflow como herramienta: lee una skill por su ruta exacta. **Solo lectura.**\n\nPara incidentes Cloudera/CDP el primer archivo es el router de resolución de incidentes.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": 880
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_cadena_de_skills",
+      "parentId": "n_bigops_guardian",
+      "tipo": "subflujo",
+      "categoria": "repo",
+      "titulo": "Cadena de skills",
+      "descripcion": "Skills del repositorio que el agente carga **una por etapa**, a partir del router.\n\nEn modo solo diagnóstico están habilitadas las etapas de diagnóstico y de reporte; búsqueda en bitácora, aplicación de solución y cierre en Helix quedan reservadas para una etapa posterior con aprobación operativa.",
+      "estado": "en-progreso",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1240,
+        "y": 700
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_postproceso_del_reporte",
+      "parentId": "n_bigops_guardian",
+      "tipo": "subflujo",
+      "categoria": "servicio",
+      "titulo": "Postproceso del reporte",
+      "descripcion": "Etapa «Output - Notificación» del workflow: convierte la salida del agente en un informe HTML y lo entrega como archivo.\n\nHay informes generados por este flujo en la carpeta de reportes del repositorio.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1860,
+        "y": 140
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_generar_informe_html",
+      "parentId": "n_postproceso_del_reporte",
+      "tipo": "basico",
+      "categoria": "servicio",
+      "titulo": "Generar informe HTML",
+      "descripcion": "Nodo de código que toma el JSON del agente (`reporteTecnico` y `reporteUsuario`) y arma el informe HTML con su nombre de archivo.\n\nSi el JSON del agente no cumple el contrato, el informe debe reflejarlo en lugar de ocultar el error.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 0,
+        "y": 100
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_convertir_informe_a_archivo",
+      "parentId": "n_postproceso_del_reporte",
+      "tipo": "basico",
+      "categoria": "servicio",
+      "titulo": "Convertir informe a archivo",
+      "descripcion": "Convierte el HTML en un archivo de texto UTF-8 con el nombre definido por el informe.\n\nEs el último nodo del workflow: el reparto del archivo a un canal de notificación no está en el export.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": 100
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_sk_router",
+      "parentId": "n_cadena_de_skills",
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "enrutador-de-resolucion-de-incidentes",
+      "descripcion": "**Primera skill que se lee.** Orquesta el diagnóstico en modo solo lectura y decide el siguiente paso según el resultado del diagnóstico.\n\nResultados posibles: falso positivo, ya resuelto, confirmado recuperable, confirmado bloqueado o evidencia insuficiente. Todas las ramas terminan en plan y reporte, nunca en ejecución o cierre.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 0,
+        "y": 100
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_sk_diag",
+      "parentId": "n_cadena_de_skills",
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "diagnostico-y-plan-de-solucion",
+      "descripcion": "Diagnostica el incidente con evidencia y propone un plan de solución **sin ejecutarlo**.\n\nElige el clúster candidato desde el catálogo de Data Hubs (nunca desde el número de incidente ni el host) y usa la CMDB solo como contexto opcional por nombre de servidor.",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 560,
+        "y": 100
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_sk_reporte",
+      "parentId": "n_cadena_de_skills",
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "generacion-de-reporte",
+      "descripcion": "**Etapa final, siempre.** Entrega un único JSON con dos reportes derivados de la misma evidencia: `reporteTecnico` (traza de skills, herramientas y diagnóstico) y `reporteUsuario` (lenguaje llano, sin nombres de herramientas).",
+      "estado": "listo",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1120,
+        "y": 100
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_sk_bitacora",
+      "parentId": "n_cadena_de_skills",
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "busqueda-de-solucion-en-bitacora",
+      "descripcion": "**No habilitada en modo solo diagnóstico.** Seleccionaría una solución validada de la bitácora solo si coincide con el diagnóstico confirmado.",
+      "estado": "diseno",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1120,
+        "y": 420
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_sk_aplicacion",
+      "parentId": "n_cadena_de_skills",
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "aplicacion-de-solucion",
+      "descripcion": "**No habilitada en modo solo diagnóstico.** Ejecutaría una acción autorizada (start, stop o restart del componente diagnosticado) y comprobaría la recuperación.",
+      "estado": "diseno",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 1680,
+        "y": 420
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "n_sk_cierre",
+      "parentId": "n_cadena_de_skills",
+      "tipo": "basico",
+      "categoria": "otro",
+      "titulo": "cierre-verificado-de-incidente-helix",
+      "descripcion": "**No habilitada en modo solo diagnóstico.** Resolvería el incidente en Helix solo tras una recuperación técnica verificada.",
+      "estado": "diseno",
+      "responsables": [
+        "bigops"
+      ],
+      "posicion": {
+        "x": 2240,
+        "y": 420
+      },
+      "colapsado": false,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    }
+  ],
+  "relaciones": [
+    {
+      "id": "rel_1",
+      "scopeId": null,
+      "sourceId": "n_entrada",
+      "targetId": "n_bigops_guardian",
+      "color": "#352FCC",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "dispara por webhook",
+      "textoInicio": "payload",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_2",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_helix",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "consulta incidente y CMDB",
+      "textoInicio": "",
+      "textoFin": "solo lectura",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_3",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_cdp",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "diagnóstico por MCP",
+      "textoInicio": "",
+      "textoFin": "solo lectura",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_4",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_llm",
+      "color": "#7A1FFF",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "razona (gpt-5.6-luna)",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_5",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_postgres",
+      "color": "#008755",
+      "estiloLinea": "punteada",
+      "puntaInicio": true,
+      "puntaFin": true,
+      "textoCentro": "lee y guarda memoria",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_6",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_bitacora",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "busca soluciones validadas",
+      "textoInicio": "",
+      "textoFin": "no habilitada hoy",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_7",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_repo_skills",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "lee skills por ruta",
+      "textoInicio": "",
+      "textoFin": "solo lectura",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_8",
+      "scopeId": null,
+      "sourceId": "n_bigops_guardian",
+      "targetId": "n_salida",
+      "color": "#4AA1FF",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "entrega informe HTML",
+      "textoInicio": "",
+      "textoFin": "canal sin definir",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_9",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_listar_skills",
+      "targetId": "n_ai_agent",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "catálogo de skills",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_10",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_obtener_skill",
+      "targetId": "n_ai_agent",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "lee la skill por ruta",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_11",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_db_bitacoraincidentes",
+      "targetId": "n_ai_agent",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "busca soluciones validadas",
+      "textoInicio": "no habilitada",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_12",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_mcp_client_cdp",
+      "targetId": "n_ai_agent",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "diagnóstico CDP/Cloudera (MCP)",
+      "textoInicio": "solo lectura",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_13",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_bancolombia_openai_chat_model",
+      "targetId": "n_ai_agent",
+      "color": "#7A1FFF",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "razonamiento del agente",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_14",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_webhook",
+      "targetId": "n_ai_agent",
+      "color": "#352FCC",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "payload del incidente",
+      "textoInicio": "POST",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_15",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_ai_agent",
+      "targetId": "n_postproceso_del_reporte",
+      "color": "#352FCC",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "salida del agente",
+      "textoInicio": "",
+      "textoFin": "informe",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_16",
+      "scopeId": "n_postproceso_del_reporte",
+      "sourceId": "n_generar_informe_html",
+      "targetId": "n_convertir_informe_a_archivo",
+      "color": "#352FCC",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "HTML a archivo",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_17",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_bancolombia_postgres_chat_memory",
+      "targetId": "n_ai_agent",
+      "color": "#008755",
+      "estiloLinea": "punteada",
+      "puntaInicio": true,
+      "puntaFin": true,
+      "textoCentro": "contexto de sesión",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_18",
+      "scopeId": "n_bigops_guardian",
+      "sourceId": "n_obtener_skill",
+      "targetId": "n_cadena_de_skills",
+      "color": "#FF6900",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "carga la skill activa",
+      "textoInicio": "solo lectura",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_19",
+      "scopeId": "n_cadena_de_skills",
+      "sourceId": "n_sk_router",
+      "targetId": "n_sk_diag",
+      "color": "#352FCC",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "siguiente etapa habilitada",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_20",
+      "scopeId": "n_cadena_de_skills",
+      "sourceId": "n_sk_diag",
+      "targetId": "n_sk_reporte",
+      "color": "#352FCC",
+      "estiloLinea": "continua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "plan y reporte",
+      "textoInicio": "",
+      "textoFin": "siempre al final",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_21",
+      "scopeId": "n_cadena_de_skills",
+      "sourceId": "n_sk_diag",
+      "targetId": "n_sk_bitacora",
+      "color": "#867035",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "etapa reservada",
+      "textoInicio": "",
+      "textoFin": "no habilitada",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_22",
+      "scopeId": "n_cadena_de_skills",
+      "sourceId": "n_sk_bitacora",
+      "targetId": "n_sk_aplicacion",
+      "color": "#867035",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "etapa reservada",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "rel_23",
+      "scopeId": "n_cadena_de_skills",
+      "sourceId": "n_sk_aplicacion",
+      "targetId": "n_sk_cierre",
+      "color": "#867035",
+      "estiloLinea": "discontinua",
+      "puntaInicio": false,
+      "puntaFin": true,
+      "textoCentro": "etapa reservada",
+      "textoInicio": "",
+      "textoFin": "",
+      "colorTextoFin": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z"
+    }
+  ],
+  "tareas": [
+    {
+      "id": "tsk_ha_7935647",
+      "nodoId": "n_bigops_guardian",
+      "titulo": "HA 7935647 · Validación de integraciones de BigOps Guardian",
+      "descripcion": "ID ADO: 7935647. Cerrada en ADO (nota de sincronización del vault, 2026-10-22). Valida las integraciones del agente con las fuentes del MVP.",
+      "estado": "hecha",
+      "prioridad": "media",
+      "responsables": [
+        "equipo-bigops"
+      ],
+      "venceEn": null,
+      "origen": "local",
+      "externo": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "tsk_ha_7935616",
+      "nodoId": "n_mcp_client_cdp",
+      "titulo": "HA 7935616 · Bintec MCP Cloudera",
+      "descripcion": "ID ADO: 7935616. Cerrada en ADO (SP255, avance 100 %). Base del MCP de Cloudera: repositorio, arquitectura, conexión con Cloudera Manager y pruebas unitarias iniciales.",
+      "estado": "hecha",
+      "prioridad": "media",
+      "responsables": [
+        "equipo-bigops"
+      ],
+      "venceEn": null,
+      "origen": "local",
+      "externo": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "tsk_ha_7980841",
+      "nodoId": "n_entrada",
+      "titulo": "HA 7980841 · Contexto y fuentes de entrada del agente",
+      "descripcion": "ID ADO: 7980841. SP256. El vault no registra el estado en ADO (consultar ADO); todas sus tareas figuran sin marcar.",
+      "estado": "pendiente",
+      "prioridad": "media",
+      "responsables": [
+        "equipo-bigops"
+      ],
+      "venceEn": null,
+      "origen": "local",
+      "externo": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "tsk_ha_7981599",
+      "nodoId": "n_entrada",
+      "titulo": "HA 7981599 · Onboarding al gobierno Kafka y acople con el agente",
+      "descripcion": "ID ADO: 7981599. SP256. El vault no registra el estado en ADO (consultar ADO); todas sus tareas figuran sin marcar.",
+      "estado": "pendiente",
+      "prioridad": "media",
+      "responsables": [
+        "equipo-bigops"
+      ],
+      "venceEn": null,
+      "origen": "local",
+      "externo": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "tsk_ha_7991215",
+      "nodoId": "n_entrada",
+      "titulo": "HA 7991215 · Probar el trigger con incidentes de Helix sin desarrollo nuevo",
+      "descripcion": "ID ADO: 7991215. SP257. La decisión D4 del vault la marca «En prueba».",
+      "estado": "en-curso",
+      "prioridad": "media",
+      "responsables": [
+        "equipo-bigops"
+      ],
+      "venceEn": null,
+      "origen": "local",
+      "externo": null,
+      "creadoEn": "2026-09-25T15:28:13.120Z",
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    }
+  ],
+  "documentos": [
+    {
+      "id": "doc_1",
+      "nodoId": "n_sk_router",
+      "tipo": "archivo",
+      "titulo": "SKILL.md de enrutador-de-resolucion-de-incidentes",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_2",
+      "nodoId": "n_sk_diag",
+      "tipo": "archivo",
+      "titulo": "SKILL.md de diagnostico-y-plan-de-solucion",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_3",
+      "nodoId": "n_sk_reporte",
+      "tipo": "archivo",
+      "titulo": "SKILL.md de generacion-de-reporte",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_4",
+      "nodoId": "n_sk_bitacora",
+      "tipo": "archivo",
+      "titulo": "SKILL.md de busqueda-de-solucion-en-bitacora",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_5",
+      "nodoId": "n_sk_aplicacion",
+      "tipo": "archivo",
+      "titulo": "SKILL.md de aplicacion-de-solucion",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_6",
+      "nodoId": "n_sk_cierre",
+      "tipo": "archivo",
+      "titulo": "SKILL.md de cierre-verificado-de-incidente-helix",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_7",
+      "nodoId": "n_bigops_guardian",
+      "tipo": "archivo",
+      "titulo": "README del proyecto en el vault",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_8",
+      "nodoId": "n_bigops_guardian",
+      "tipo": "archivo",
+      "titulo": "Documento maestro MVP Impala v2.0",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_9",
+      "nodoId": "n_bigops_guardian",
+      "tipo": "archivo",
+      "titulo": "Workflow n8n BigOps_CDP",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_10",
+      "nodoId": "n_entrada",
+      "tipo": "archivo",
+      "titulo": "HA 7980841 · Contexto y fuentes de entrada",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_11",
+      "nodoId": "n_entrada",
+      "tipo": "archivo",
+      "titulo": "HA 7981599 · Onboarding Kafka",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_12",
+      "nodoId": "n_entrada",
+      "tipo": "archivo",
+      "titulo": "HA 7991215 · Trigger con incidentes de Helix",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_13",
+      "nodoId": "n_helix",
+      "tipo": "archivo",
+      "titulo": "README del MCP de Helix",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_14",
+      "nodoId": "n_cdp",
+      "tipo": "archivo",
+      "titulo": "README del MCP de Cloudera",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_15",
+      "nodoId": "n_repo_skills",
+      "tipo": "archivo",
+      "titulo": "README de las skills",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_16",
+      "nodoId": "n_mcp_client_cdp",
+      "tipo": "archivo",
+      "titulo": "README del MCP de Cloudera",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_17",
+      "nodoId": "n_mcp_client_cdp",
+      "tipo": "archivo",
+      "titulo": "HA 7935616 · Bintec MCP Cloudera",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_18",
+      "nodoId": "n_listar_skills",
+      "tipo": "archivo",
+      "titulo": "README de las skills",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_19",
+      "nodoId": "n_obtener_skill",
+      "tipo": "archivo",
+      "titulo": "README de las skills",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    },
+    {
+      "id": "doc_20",
+      "nodoId": "n_generar_informe_html",
+      "tipo": "archivo",
+      "titulo": "Especificación de los informes",
+      "url": null,
+      "ruta": null,
+      "contenido": null,
+      "cache": null,
+      "actualizadoEn": "2026-09-25T15:28:13.120Z"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+# Dependencias y artefactos de build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Entorno y secretos (nunca se versionan)
+.env
+.env.*
+!.env.example
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs y temporales
+*.log
+npm-debug.log*
+coverage/
+.tmp/
+
+# Capturas sin curar (las que se publican viven en docs/img/)
+capturas/
