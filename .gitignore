@@ -24,3 +24,9 @@ coverage/
 
 # Capturas sin curar (las que se publican viven en docs/img/)
 capturas/
+
+# Configuracion local del asistente (MCP Supabase, project_ref)
+opencode.json
+
+# Skills locales del asistente (Supabase)
+.agents/

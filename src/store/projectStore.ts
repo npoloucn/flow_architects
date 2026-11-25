@@ -1,28 +1,60 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import type { Proyecto, Puerto } from "../domain/schema";
 import * as C from "../domain/commands";
 import { getNodeType } from "../nodeTypes/registry";
 import { vistaDe } from "../nodeViews/registry";
 import { guardarDoc, leerDoc } from "../persistence/coleccion";
+import { configurado, type Visibilidad } from "../lib/supabase";
+import { useAuth } from "./authStore";
+import { ErrorNube, esIdNube, guardarProyecto, obtenerProyecto, revisionActual, type RolProyecto } from "../persistence/nube";
+import { guardarCache, leerCache } from "../persistence/cache";
 
 /**
- * Store del DOCUMENTO abierto: única fuente de verdad del proyecto en edición, con historial de
- * deshacer/rehacer (snapshots inmutables, máx. 50). Al abrir otro proyecto el historial se reinicia.
- * No sabe nada de viewport, selección ni tema.
+ * Store del DOCUMENTO abierto: Ãºnica fuente de verdad del proyecto en ediciÃ³n, con historial de
+ * deshacer/rehacer (snapshots inmutables, mÃ¡x. 50). Al abrir otro proyecto el historial se reinicia.
+ * No sabe nada de viewport, selecciÃ³n ni tema.
+ *
+ * Modos:
+ *  - `local`   proyecto del navegador (comportamiento historico).
+ *  - `cloud`   proyecto en Supabase con permiso de edicion; autoguardado por RPC `save_project`.
+ *  - `lectura` proyecto de la nube visible pero sin permiso de edicion (visitante o viewer).
+ *  - `offline` copia en cache porque no hay red; no se permite guardar.
  */
 const MAX_HISTORIAL = 50;
+
+export type ModoProyecto = "local" | "cloud" | "lectura" | "offline";
+
+export interface ConflictoProyecto {
+  mensaje: string;
+  revision: number | null;
+}
 
 interface ProjectState {
   projectId: string | null;
   doc: Proyecto | null;
   saveError: string | null;
+  modo: ModoProyecto;
+  revision: number | null;
+  miRol: RolProyecto | null;
+  visibilidad: Visibilidad | null;
+  ownerId: string | null;
+  conflicto: ConflictoProyecto | null;
+  sinConexion: boolean;
+  guardando: boolean;
+  /** Hay cambios sin guardar en la nube (se reintentan al volver la conexion). */
+  sucio: boolean;
+  ultimoGuardado: string | null;
   past: Proyecto[];
   future: Proyecto[];
-  abrirProyecto: (id: string) => { ok: true } | { ok: false; issues: string[] };
+  abrirProyecto: (id: string) => Promise<{ ok: true } | { ok: false; issues: string[] }>;
   cerrarProyecto: () => void;
   undo: () => void;
   redo: () => void;
   reemplazarProyecto: (doc: Proyecto) => void;
+  guardarAhora: () => Promise<void>;
+  recargarDelServidor: () => Promise<boolean>;
+  guardarEncima: () => Promise<boolean>;
+  sincronizarMeta: (p: { revision?: number; visibilidad?: Visibilidad; miRol?: RolProyecto }) => void;
   crearNodo: (tipo: string, parentId: string | null, pos: { x: number; y: number }, categoriaId?: string) => C.Res<{ id: string }>;
   moverNodo: (id: string, pos: { x: number; y: number }) => C.Res;
   crearZona: (scopeId: string | null, pos: { x: number; y: number }) => C.Res<{ id: string }>;
@@ -61,6 +93,19 @@ interface ProjectState {
 let timer: ReturnType<typeof setTimeout> | undefined;
 let lastKey: string | null = null;
 let lastAt = 0;
+let guardandoEnCurso = false;
+let guardadoPendiente = false;
+
+const SIN_RED = "Sin conexion: estas viendo una copia local. Vuelve a conectarte para guardar.";
+const TIEMPO_AGOTADO = Symbol("tiempo-agotado");
+
+/** Limita la espera de una promesa; si expira se rechaza con TIEMPO_AGOTADO. */
+function conTiempo<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, rechazar) => setTimeout(() => rechazar(TIEMPO_AGOTADO), ms)),
+  ]);
+}
 
 export const useProjectStore = create<ProjectState>((set, get) => {
   const commit = (doc: Proyecto, key?: string) =>
@@ -72,13 +117,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
       return fusiona ? { doc, future: [] } : { doc, past: [...s.past, s.doc!].slice(-MAX_HISTORIAL), future: [] };
     });
   const apply = <T extends object>(r: C.Res<T>, key?: string): C.Res<T> => {
+    if (get().modo === "lectura") return { ok: false, error: "Este proyecto es de solo lectura. Inicia sesion con permiso de edicion para modificarlo." };
     if (r.ok) commit(r.doc, key);
     return r;
   };
   const d = () => get().doc!;
-  /** Tamaño del marco de colocación de cada nodo según su tipo (para decidir en qué zona cae). */
+  /** TamaÃ±o del marco de colocaciÃ³n de cada nodo segÃºn su tipo (para decidir en quÃ© zona cae). */
   const frame = (): C.Frame => (id) => { const n = get().doc!.nodos.find((x) => x.id === id); return n ? getNodeType(n.tipo).size : { w: 0, h: 0 }; };
-  /** Tamaño real de la tarjeta según su vista (para medir la separación mínima de las flechas verticales). */
+  /** TamaÃ±o real de la tarjeta segÃºn su vista (para medir la separaciÃ³n mÃ­nima de las flechas verticales). */
   const card: C.CardSize = (id) => {
     const doc = get().doc!;
     const n = doc.nodos.find((x) => x.id === id);
@@ -89,26 +135,118 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     projectId: null,
     doc: null,
     saveError: null,
+    modo: "local",
+    revision: null,
+    miRol: null,
+    visibilidad: null,
+    ownerId: null,
+    conflicto: null,
+    sinConexion: false,
+    guardando: false,
+    sucio: false,
+    ultimoGuardado: null,
     past: [],
     future: [],
 
-    abrirProyecto: (id) => {
+    abrirProyecto: async (id) => {
       flush();
-      const r = leerDoc(id);
-      if (!r.ok) return r;
-      set({ projectId: id, doc: r.doc, past: [], future: [], saveError: null });
-      return { ok: true };
+      const local = () => {
+        const r = leerDoc(id);
+        if (!r.ok) return r;
+        set({ projectId: id, doc: r.doc, past: [], future: [], saveError: null, modo: "local", revision: null, miRol: null, visibilidad: null, ownerId: null, conflicto: null, sinConexion: false, sucio: false, ultimoGuardado: null });
+        return { ok: true as const };
+      };
+
+      if (!configurado || !esIdNube(id)) return local();
+
+      const uid = useAuth.getState().user?.id ?? null;
+      const sinRed = typeof navigator !== "undefined" && navigator.onLine === false;
+      const desdeCache = (): { ok: true } | { ok: false; issues: string[] } => {
+        const c = leerCache(id);
+        if (!c) return { ok: false, issues: ["Sin conexion y este proyecto no tiene una copia guardada en este navegador."] };
+        const editable = !!uid && (c.rol === "owner" || c.rol === "editor");
+        set({
+          projectId: id, doc: c.doc, past: [], future: [], saveError: null,
+          modo: sinRed ? "offline" : editable ? "cloud" : "lectura",
+          revision: c.revision, miRol: (c.rol as RolProyecto) ?? null, visibilidad: c.visibilidad, ownerId: c.ownerId,
+          conflicto: null, sinConexion: sinRed, sucio: false, ultimoGuardado: null,
+        });
+        return { ok: true };
+      };
+
+      if (sinRed) return desdeCache();
+
+      try {
+        const p = await obtenerProyecto(id, uid);
+        if (!p) {
+          const c = leerCache(id);
+          if (c) return desdeCache();
+          return { ok: false, issues: ["El proyecto no existe o no tienes permiso para verlo."] };
+        }
+        const editable = !!uid && (p.rol === "owner" || p.rol === "editor");
+        guardarCache(id, { doc: p.data, revision: p.revision, actualizadoEn: p.actualizadoEn, ownerId: p.ownerId, visibilidad: p.visibilidad, rol: p.rol });
+        set({
+          projectId: id, doc: p.data, past: [], future: [], saveError: null,
+          modo: editable ? "cloud" : "lectura",
+          revision: p.revision, miRol: p.rol, visibilidad: p.visibilidad, ownerId: p.ownerId,
+          conflicto: null, sinConexion: false, sucio: false, ultimoGuardado: null,
+        });
+        return { ok: true };
+      } catch (e) {
+        const c = leerCache(id);
+        if (c) return desdeCache();
+        return { ok: false, issues: [e instanceof Error ? e.message : "No se pudo abrir el proyecto."] };
+      }
     },
+
     cerrarProyecto: () => {
       flush();
-      set({ projectId: null, doc: null, past: [], future: [], saveError: null });
+      set({ projectId: null, doc: null, past: [], future: [], saveError: null, modo: "local", revision: null, miRol: null, visibilidad: null, ownerId: null, conflicto: null, sinConexion: false, guardando: false, sucio: false, ultimoGuardado: null });
     },
-    undo: () => { lastKey = null; set((s) => (s.past.length ? { doc: s.past[s.past.length - 1], past: s.past.slice(0, -1), future: [s.doc!, ...s.future] } : s)); },
-    redo: () => { lastKey = null; set((s) => (s.future.length ? { doc: s.future[0], future: s.future.slice(1), past: [...s.past, s.doc!].slice(-MAX_HISTORIAL) } : s)); },
-    reemplazarProyecto: (doc) => commit({ ...doc, id: get().projectId! }),
+    undo: () => { if (get().modo === "lectura") return; lastKey = null; set((s) => (s.past.length ? { doc: s.past[s.past.length - 1], past: s.past.slice(0, -1), future: [s.doc!, ...s.future] } : s)); },
+    redo: () => { if (get().modo === "lectura") return; lastKey = null; set((s) => (s.future.length ? { doc: s.future[0], future: s.future.slice(1), past: [...s.past, s.doc!].slice(-MAX_HISTORIAL) } : s)); },
+    reemplazarProyecto: (doc) => { if (get().modo !== "lectura") commit({ ...doc, id: get().projectId! }); },
+
+    guardarAhora: async () => { await guardarNube(); },
+
+    recargarDelServidor: async () => {
+      const s = get();
+      if (!s.projectId) return false;
+      try {
+        const p = await obtenerProyecto(s.projectId, useAuth.getState().user?.id ?? null);
+        if (!p) throw new Error("No se pudo leer la version del servidor.");
+        const editable = p.rol === "owner" || p.rol === "editor";
+        set({ doc: p.data, revision: p.revision, modo: editable ? "cloud" : "lectura", miRol: p.rol, visibilidad: p.visibilidad, ownerId: p.ownerId, conflicto: null, sinConexion: false, sucio: false, past: [], future: [], saveError: null });
+        guardarCache(p.id, { doc: p.data, revision: p.revision, actualizadoEn: p.actualizadoEn, ownerId: p.ownerId, visibilidad: p.visibilidad, rol: p.rol });
+        return true;
+      } catch (e) {
+        set({ saveError: e instanceof Error ? e.message : "No se pudo recargar." });
+        return false;
+      }
+    },
+
+    guardarEncima: async () => {
+      const s = get();
+      if (!s.projectId || !s.doc) return false;
+      try {
+        const p = await guardarProyecto(s.projectId, s.doc, null);
+        set({ revision: p.revision, conflicto: null, guardando: false, sucio: false, ultimoGuardado: new Date().toISOString(), sinConexion: false, saveError: null, modo: "cloud" });
+        guardarCache(p.id, { doc: s.doc, revision: p.revision, actualizadoEn: new Date().toISOString(), ownerId: p.ownerId, visibilidad: p.visibilidad, rol: s.miRol ?? "owner" });
+        return true;
+      } catch (e) {
+        set({ conflicto: { mensaje: e instanceof Error ? e.message : "No se pudo guardar.", revision: s.revision }, guardando: false });
+        return false;
+      }
+    },
+
+    sincronizarMeta: (p) => set((s) => ({
+      revision: p.revision ?? s.revision,
+      visibilidad: p.visibilidad ?? s.visibilidad,
+      miRol: p.miRol ?? s.miRol,
+    })),
 
     crearNodo: (tipo, parentId, pos, cat) => apply(C.crearNodo(d(), tipo, parentId, pos, getNodeType(tipo).defaults(), cat)),
-    // Al soltar, el nodo se acomoda si una flecha vertical quedaría sin tramo visible; el ajuste es parte del mismo paso de deshacer.
+    // Al soltar, el nodo se acomoda si una flecha vertical quedarÃ­a sin tramo visible; el ajuste es parte del mismo paso de deshacer.
     moverNodo: (id, pos) => {
       const doc = d();
       return apply(C.moverNodo(doc, id, C.posicionConSeparacionVertical(doc, id, pos, frame(), card), frame()));
@@ -157,21 +295,103 @@ export const useProjectStore = create<ProjectState>((set, get) => {
   };
 });
 
+/** Guarda el proyecto abierto. Local = sincrono; nube = RPC con control de revision. */
+async function guardarNube(): Promise<void> {
+  const s = useProjectStore.getState();
+  if (!s.projectId || !s.doc) return;
+  if (s.modo === "lectura") return;
+  if (s.modo === "offline" || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+    if (!s.sinConexion) useProjectStore.setState({ sinConexion: true, saveError: SIN_RED });
+    return;
+  }
+  if (s.conflicto) return;
+  if (guardandoEnCurso) { guardadoPendiente = true; return; }
+
+  guardandoEnCurso = true;
+  useProjectStore.setState({ guardando: true });
+  const doc = s.doc;
+  try {
+    // Comprobacion previa: detecta el conflicto sin depender de que el RPC
+    // devuelva 40001 (en algunos despliegues PostgREST deja esa respuesta colgada).
+    let revision = s.revision;
+    if (revision !== null) {
+      const revServidor = await revisionActual(s.projectId);
+      if (revServidor === null) throw new ErrorNube("El proyecto ya no existe o no tienes permiso para guardarlo.");
+      if (revServidor !== revision) {
+        useProjectStore.setState({ guardando: false, conflicto: { mensaje: `La version del servidor (${revServidor}) es mas nueva que la tuya (${revision}).`, revision }, saveError: null });
+        return;
+      }
+      revision = revServidor;
+    }
+    const fila = await conTiempo(guardarProyecto(s.projectId, doc, revision), 15000);
+    guardarCache(s.projectId, {
+      doc, revision: fila.revision, actualizadoEn: new Date().toISOString(),
+      ownerId: fila.ownerId, visibilidad: fila.visibilidad, rol: s.miRol ?? "editor",
+    });
+    useProjectStore.setState((cur) => cur.projectId === s.projectId
+      ? { revision: fila.revision, guardando: false, sucio: cur.doc === doc ? false : cur.sucio, ultimoGuardado: new Date().toISOString(), sinConexion: false, saveError: null }
+      : { guardando: false });
+  } catch (e) {
+    if (e === TIEMPO_AGOTADO) {
+      const rev = await revisionActual(s.projectId).catch(() => null);
+      if (rev !== null && rev !== s.revision) {
+        useProjectStore.setState({ guardando: false, conflicto: { mensaje: `La version del servidor (${rev}) avanzo mientras guardabas.`, revision: s.revision }, saveError: null });
+        return;
+      }
+      useProjectStore.setState({ guardando: false, saveError: "El guardado tardo demasiado. Revisa tu conexion e intentalo de nuevo." });
+      return;
+    }
+    if (e instanceof ErrorNube && e.code === "40001") {
+      useProjectStore.setState({ guardando: false, conflicto: { mensaje: e.message, revision: s.revision }, saveError: null });
+      return;
+    }
+    const sinRed = typeof navigator !== "undefined" && navigator.onLine === false;
+    useProjectStore.setState({
+      guardando: false,
+      sinConexion: sinRed,
+      saveError: sinRed ? SIN_RED : e instanceof Error ? e.message : "No se pudo guardar el proyecto.",
+    });
+  } finally {
+    guardandoEnCurso = false;
+    if (guardadoPendiente) {
+      guardadoPendiente = false;
+      void guardarNube();
+    }
+  }
+}
+
 // ---- Autoguardado del proyecto abierto: debounce + volcado inmediato al cerrar/ocultar/cambiar de proyecto ----
 function flush() {
   clearTimeout(timer);
-  const { doc, projectId, saveError } = useProjectStore.getState();
+  const { doc, projectId, modo, conflicto } = useProjectStore.getState();
   if (!doc || !projectId) return;
-  const r = guardarDoc(doc);
-  const err = r.ok ? null : r.error;
-  if (err !== saveError) useProjectStore.setState({ saveError: err });
+  if (modo === "local") {
+    const r = guardarDoc(doc);
+    const err = r.ok ? null : r.error;
+    if (err !== useProjectStore.getState().saveError) useProjectStore.setState({ saveError: err });
+    return;
+  }
+  if (modo === "cloud" && !conflicto && useProjectStore.getState().sucio) void guardarNube();
 }
 useProjectStore.subscribe((s, p) => {
   if (s.doc && s.doc !== p.doc && s.projectId === p.projectId) {
+    if (s.modo === "lectura") return;
+    if (!s.sucio) useProjectStore.setState({ sucio: true });
     clearTimeout(timer);
-    timer = setTimeout(flush, 400);
+    timer = setTimeout(() => { void guardarNube(); }, 700);
   }
 });
-window.addEventListener("pagehide", flush);
-window.addEventListener("beforeunload", flush);
-document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flush());
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flush);
+  window.addEventListener("beforeunload", flush);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flush());
+  window.addEventListener("offline", () => useProjectStore.setState({ sinConexion: true }));
+  window.addEventListener("online", () => {
+    const s = useProjectStore.getState();
+    const modo = s.modo === "offline" ? (s.miRol === "owner" || s.miRol === "editor" ? "cloud" : "lectura") : s.modo;
+    useProjectStore.setState({ sinConexion: false, saveError: null, modo });
+    if (modo === "cloud" && s.sucio) void guardarNube();
+  });
+}
+
+

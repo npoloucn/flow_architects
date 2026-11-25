@@ -54,3 +54,15 @@ export const IconList = (p: SVGProps<SVGSVGElement>) => (<svg {...base(p)}><path
 export const IconCode = (p: SVGProps<SVGSVGElement>) => (<svg {...base(p)}><path d="m5.5 4.5-3.5 3.5 3.5 3.5M10.5 4.5 14 8l-3.5 3.5" /></svg>);export const IconPencil = (p: SVGProps<SVGSVGElement>) => (<svg {...base(p)}><path d="M3 13l.6-2.8L11 2.8a1.4 1.4 0 0 1 2 0l.2.2a1.4 1.4 0 0 1 0 2l-7.4 7.4z" /><path d="M9.8 4l2.2 2.2" /></svg>);
 export const IconMore = (p: SVGProps<SVGSVGElement>) => (<svg {...base(p)} fill="currentColor" stroke="none"><circle cx="3.5" cy="8" r="1.3" /><circle cx="8" cy="8" r="1.3" /><circle cx="12.5" cy="8" r="1.3" /></svg>);
 export const IconPipette = (p: SVGProps<SVGSVGElement>) => (<svg {...base(p)}><path d="M10.5 2.5a1.8 1.8 0 0 1 2.6 2.6l-1.4 1.4-2.6-2.6zM9.1 3.9 3.2 9.8c-.3.3-.5.7-.5 1.1v1.6c0 .3.2.5.5.5h1.6c.4 0 .8-.2 1.1-.5l5.9-5.9" /></svg>);
+export const IconLogout = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M6.5 2.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3" /><path d="M11 8H5M8.8 5.2 11.6 8l-2.8 2.8" /></svg>
+);
+export const IconUsers = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><circle cx="6" cy="5.5" r="2.2" /><path d="M2.5 13.2a3.5 3.5 0 0 1 7 0" /><path d="M10.6 3.6a2 2 0 0 1 0 3.8M11.5 13.2a3.4 3.4 0 0 0-1.6-2.4" /></svg>
+);
+export const IconCloud = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M4.5 12.5h7a2.5 2.5 0 0 0 .3-5A4 4 0 0 0 4 6.6a3 3 0 0 0 .5 5.9Z" /></svg>
+);
+export const IconClock = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><circle cx="8" cy="8" r="5.5" /><path d="M8 4.6V8l2.2 1.6" /></svg>
+);

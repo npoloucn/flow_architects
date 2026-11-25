@@ -20,7 +20,7 @@ Más capturas: [vista icono](docs/img/51-vista-icono-oscuro.png) · [panel de fl
 
 ## Stack
 
-React 18 · TypeScript · Vite · [`@xyflow/react`](https://reactflow.dev) · Zustand · Zod · react-markdown.
+React 18 · TypeScript · Vite · [`@xyflow/react`](https://reactflow.dev) · Zustand · Zod · react-markdown · Supabase.
 
 ## Ejecutar en local
 
@@ -30,6 +30,44 @@ npm run dev       # http://localhost:5173
 ```
 
 En Windows también puedes hacer doble clic en `iniciar-app.cmd`, que instala dependencias la primera vez y abre el navegador.
+
+## Cuentas y proyectos en la nube (Supabase)
+
+La app funciona en dos modos:
+
+- **Nube**: si existen `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, hay cuentas, proyectos compartidos, visibilidad (`privado`, `enlace`, `publico`), revisiones e historial. El contenido se guarda con la RPC `save_project` y control de revisión (conflictos `40001` avisados, nunca sobrescritos en silencio).
+- **Local**: si faltan esas variables, la app mantiene el comportamiento histórico con `localStorage` y muestra un aviso de "sin backend configurado". No hay pantalla en blanco.
+
+### Variables de entorno
+
+Copia [`.env.example`](.env.example) a `.env` (ignorado por git) y completa:
+
+```bash
+VITE_SUPABASE_URL=https://<proyecto>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon public key>
+```
+
+La `anon key` es pública y RLS protege los datos. **Nunca** uses la `service_role` en el cliente.
+
+### Roles y acceso
+
+- **Dueño**: crea, renombra, cambia visibilidad, comparte (`viewer`/`editor`), elimina, restaura revisiones.
+- **Editor**: guarda contenido; no administra miembros ni borra el proyecto.
+- **Viewer**: abre el proyecto en solo lectura.
+- **Sin cuenta**: abre proyectos `enlace` o `publico` en solo lectura con aviso y botón para iniciar sesión.
+
+Los miembros se agregan por correo con `add_project_member`; la persona debe tener cuenta creada. La última versión leída de cada proyecto queda en `localStorage` para poder abrirlo sin red (sin permitir guardar).
+
+### Secrets para GitHub Actions
+
+El build de Pages no tiene `.env`. En **Settings → Secrets and variables → Actions** crea:
+
+| Secret | Valor |
+| --- | --- |
+| `VITE_SUPABASE_URL` | URL del proyecto (`https://<proyecto>.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | anon / publishable key |
+
+El workflow los inyecta solo en el paso de compilación.
 
 ## Compilar
 
