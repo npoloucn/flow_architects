@@ -144,7 +144,7 @@ async function main() {
 
     // 2. A crea proyecto
     await abrirLista(pageA);
-    proyectoId = await nuevoProyecto(pageA, `E2E ${TS}`);
+    proyectoId = await nuevoProyecto(pageA, `e2e- proyecto ${TS}`);
     estado.proyectos.push(proyectoId);
     ok("A crea proyecto", proyectoId);
 
@@ -250,6 +250,17 @@ async function main() {
       ok("Resolver conflicto guardando encima");
     } catch {
       fallo("Conflicto 40001 muestra dialogo");
+    }
+
+    // 11b. Cerrar sesion: ahora vive dentro del menu del avatar de la barra.
+    try {
+      await pageC.click('[data-testid="menu-usuario"]');
+      await visible(pageC, '[data-testid="salir"]', 8000);
+      await pageC.click('[data-testid="salir"]');
+      await pageC.waitForFunction(() => !document.querySelector('[data-testid="menu-usuario"]'), { timeout: 20000 });
+      ok("Cerrar sesion desde el menu del avatar");
+    } catch {
+      fallo("Cerrar sesion desde el menu del avatar");
     }
 
     // 12. Offline: copia cacheada y aviso

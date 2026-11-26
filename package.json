@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "limpiar:e2e": "node scripts/limpiar-e2e.mjs",
+    "test:filtro-e2e": "node scripts/limpiar-e2e.mjs --autotest",
     "preview": "vite preview --base=/flow_architects/"
   },
   "dependencies": {
