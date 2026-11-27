@@ -270,7 +270,14 @@ export const useProjectStore = create<ProjectState>((set, get) => {
     cambiarTipo: (id, tipo, eliminarHijos) => apply(C.cambiarTipoNodo(d(), id, tipo, eliminarHijos)),
     duplicarNodo: (id, conHijos) => apply(C.duplicarNodo(d(), id, conHijos)),
     eliminarNodo: (id) => apply(C.eliminarNodo(d(), id)),
-    conectar: (s, t, pi, pf) => apply(C.conectarAcomodado(d(), s, t, pi ?? "derecha", pf ?? "izquierda", frame(), card)),
+    conectar: (s, t, pi, pf) => {
+      const doc = d();
+      // Sin lados explícitos (arrastre desde un handle o sobre el cuerpo del nodo): elige el par más natural.
+      const auto = pi && pf ? null : C.puertosAutomaticos(doc, s, t, frame(), card);
+      const puertoInicio = pi ?? auto?.puertoInicio ?? "derecha";
+      const puertoFin = pf ?? auto?.puertoFin ?? "izquierda";
+      return apply(C.conectarAcomodado(doc, s, t, puertoInicio, puertoFin, frame(), card));
+    },
     invertirRelacion: (id) => {
       const r = C.invertirRelacion(d(), id);
       return r.ok ? apply({ ok: true as const, doc: C.acomodarRelacion(r.doc, id, frame(), card) }) : apply(r);

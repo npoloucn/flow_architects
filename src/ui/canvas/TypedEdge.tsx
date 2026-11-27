@@ -1,14 +1,36 @@
-﻿import { memo, useEffect, useMemo } from "react";
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react";
+import { memo, useEffect, useMemo } from "react";
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from "@xyflow/react";
 import type { Relacion } from "../../domain/schema";
 import { useCanvasStore } from "../../store/canvasStore";
 import { coloresTema } from "../color";
-import { AIRE_SALIDA, AIRE_VERTICAL, ANCHO, DASH, LARGO_PUNTA, SALIENTE_VERTICAL, ancla, colorTextoFin, colorEtiqueta, colorTextoInicio, contorno, disponerTextos, disponerVertical, GROSOR_CONTORNO, horizontal, puntaEn, rutaVertical, type Lado } from "./edgeVisual";
+import { AIRE_SALIDA, AIRE_VERTICAL, ANCHO, DASH, LARGO_PUNTA, SALIENTE_VERTICAL, ancla, colorTextoFin, colorEtiqueta, colorTextoInicio, contorno, disponerTextos, disponerVertical, GROSOR_CONTORNO, horizontal, puntaVec, type Lado } from "./edgeVisual";
+import { calcularRuta, rutaRecta, type Punto, type RectNodo } from "./routing";
+
+type Tam = { w: number; h: number };
+
+/** Dirección unitaria (las puntas de flecha miden igual en cualquier ángulo). */
+const unitario = (v: Punto): Punto => {
+  const l = Math.hypot(v.x, v.y);
+  return l > 1e-6 ? { x: v.x / l, y: v.y / l } : { x: 1, y: 0 };
+};
 
 /**
- * Flecha configurable: línea con contorno, hasta dos puntas independientes y tres textos. Sale y entra por el lado
- * (izquierda, derecha, arriba, abajo) guardado en la relación; el desplazamiento paralelo de flechas múltiples se
- * aplica perpendicular al lado de cada extremo.
+ * Rectángulo aproximado de la tarjeta a partir del puerto, su lado y su tamaño real. El puerto sobresale
+ * un poco del borde y puede llevar el desplazamiento de flechas paralelas, pero con el margen del desvío
+ * la caja es suficientemente exacta para decidir por dónde rodear sin atravesar las tarjetas.
+ */
+const cajaDesde = (x: number, y: number, lado: Lado, t?: Tam): RectNodo | undefined => {
+  if (!t) return undefined;
+  const left = lado === "left" ? x : lado === "right" ? x - t.w : x - t.w / 2;
+  const top = lado === "top" ? y : lado === "bottom" ? y - t.h : y - t.h / 2;
+  return { x: left, y: top, width: t.w, height: t.h };
+};
+
+/**
+ * Flecha configurable: línea con contorno, hasta dos puntas independientes y tres textos. El trazado lo decide
+ * el motor híbrido (`routing`): recta, S suave u ortogonal con esquinas redondeadas según los lados de los
+ * puertos; las puntas se orientan por la tangente real de la ruta. Las flechas verticales apiladas conservan su
+ * carril centrado y sus textos al costado. El desplazamiento paralelo (`off`/`lane`) se sigue aplicando.
  * Texto de inicio = color de la flecha (regla fija); texto de fin = color de la flecha salvo override.
  */
 function TypedEdgeImpl(p: EdgeProps) {
@@ -27,6 +49,7 @@ function TypedEdgeImpl(p: EdgeProps) {
   // (en los subflujos el handle está a −20 px, no a −11).
   const salienteS = (p.data as { salienteS?: number }).salienteS ?? SALIENTE_VERTICAL;
   const salienteT = (p.data as { salienteT?: number }).salienteT ?? SALIENTE_VERTICAL;
+  const tamS = (p.data as { tamS?: Tam }).tamS, tamT = (p.data as { tamT?: Tam }).tamT;
   const saliente = (lado: Lado, s: number) => (lado === "top" ? s : lado === "bottom" ? -s : 0);
   const bordeS = p.sourceY + saliente(ladoS, salienteS), bordeT = p.targetY + saliente(ladoT, salienteT);
   const aire = (lado: Lado, a: number) => (lado === "top" ? -a : lado === "bottom" ? a : 0);
@@ -35,12 +58,22 @@ function TypedEdgeImpl(p: EdgeProps) {
   // Flecha apilada: sale por abajo y entra por arriba (o al revés). Se dibuja como una sola recta centrada en las tarjetas.
   const apilada = !horizontal(ladoS) && !horizontal(ladoT) &&
     ((ladoS === "bottom" && ladoT === "top" && p.targetY >= p.sourceY) || (ladoS === "top" && ladoT === "bottom" && p.targetY <= p.sourceY));
-  const vert = apilada && vgap >= 2 ? rutaVertical(p.sourceX + lane, syV, p.targetX + lane, tyV) : null;
+  const vert = apilada && vgap >= 2;
   const sx = p.sourceX + (!horizontal(ladoS) && !vert ? off : 0), sy = p.sourceY + (horizontal(ladoS) ? off : 0);
   const tx = p.targetX + (!horizontal(ladoT) && !vert ? off : 0), ty = p.targetY + (horizontal(ladoT) ? off : 0);
-  const bezier = getBezierPath({ sourceX: sx, sourceY: sy, sourcePosition: p.sourcePosition, targetX: tx, targetY: ty, targetPosition: p.targetPosition, curvature: 0.3 });
-  const path = vert ? vert.d : bezier[0];
-  const lx = vert ? vert.centro.x : bezier[1], ly = vert ? vert.centro.y : bezier[2];
+  const inicio: Punto = vert ? { x: p.sourceX + lane, y: syV } : { x: sx, y: sy };
+  const fin: Punto = vert ? { x: p.targetX + lane, y: tyV } : { x: tx, y: ty };
+
+  const ruta = vert
+    ? rutaRecta(inicio, fin)
+    : calcularRuta(
+        { x: inicio.x, y: inicio.y, lado: ladoS },
+        { x: fin.x, y: fin.y, lado: ladoT },
+        { rectOrigen: cajaDesde(p.sourceX, p.sourceY, ladoS, tamS), rectDestino: cajaDesde(p.targetX, p.targetY, ladoT, tamT) },
+      );
+  const path = ruta.path;
+  const lx = ruta.centro.x, ly = ruta.centro.y;
+
   // en flechas paralelas las etiquetas de extremo van hacia fuera del grupo; en la central, inicio y fin en lados opuestos
   const ladoI: 1 | -1 = off > 0 ? 1 : -1;
   const ladoF: 1 | -1 = off < 0 ? -1 : 1;
@@ -58,15 +91,18 @@ function TypedEdgeImpl(p: EdgeProps) {
       return { ...disponerTextos(rel, { sx, sy, tx, ty, lx, ly, ladoS, ladoT, ladoI, ladoF, extraS, extraT }), aI: null, aF: null, aC: null };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rel.puntaInicio, rel.puntaFin, rel.textoCentro, rel.textoInicio, rel.textoFin, sx, sy, tx, ty, syV, tyV, bordeS, bordeT, lane, lx, ly, ladoS, ladoT, ladoI, ladoF, extraS, extraT, !!vert, vgap],
+    [rel.puntaInicio, rel.puntaFin, rel.textoCentro, rel.textoInicio, rel.textoFin, sx, sy, tx, ty, syV, tyV, bordeS, bordeT, lane, lx, ly, ladoS, ladoT, ladoI, ladoF, extraS, extraT, vert, vgap],
   );
   const claveOcultos = disp.ocultos.join("|");
   useEffect(() => { useCanvasStore.getState().setEdgeOcultos(p.id, disp.ocultos); }, [p.id, claveOcultos]); // eslint-disable-line react-hooks/exhaustive-deps
   const aI = vert ? disp.aI : ancla(sx, sy, ladoS, hS + extraS, ladoI);
   const aF = vert ? disp.aF : ancla(tx, ty, ladoT, hE + extraT, ladoF);
   const pos = (a: NonNullable<typeof aI>) => `translate(${a.tx * 100}%, ${a.ty * 100}%) translate(${a.ax}px,${a.ay}px)`;
-  const cabeza = (x: number, y: number, lado: Lado) => {
-    const d = puntaEn(x, y, lado);
+  // Puntas sobre la tangente real: la del fin avanza hacia el nodo destino y la del inicio, de vuelta al origen.
+  const dirFin = unitario(ruta.tangenteFin);
+  const dirIni = unitario({ x: -ruta.tangenteInicio.x, y: -ruta.tangenteInicio.y });
+  const cabeza = (x: number, y: number, dir: Punto) => {
+    const d = puntaVec(x, y, dir.x, dir.y);
     return (
       <>
         {bajo && <path d={d} fill={halo} stroke={halo} strokeWidth={2.5} strokeLinejoin="round" />}
@@ -78,10 +114,10 @@ function TypedEdgeImpl(p: EdgeProps) {
   return (
     <>
       {p.selected && <path d={path} className="edge-halo" fill="none" />}
-      {bajo && <path d={path} fill="none" stroke={halo} strokeWidth={ancho + GROSOR_CONTORNO} strokeLinecap="round" strokeDasharray={DASH[rel.estiloLinea]} className="edge-under" />}
-      <BaseEdge id={p.id} path={path} interactionWidth={18} style={{ stroke: rel.color, strokeWidth: ancho, strokeDasharray: DASH[rel.estiloLinea], strokeLinecap: "round" }} />
-      {rel.puntaInicio && cabeza(vert ? p.sourceX + lane : sx, vert ? syV : sy, ladoS)}
-      {rel.puntaFin && cabeza(vert ? p.targetX + lane : tx, vert ? tyV : ty, ladoT)}
+      {bajo && <path d={path} fill="none" stroke={halo} strokeWidth={ancho + GROSOR_CONTORNO} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={DASH[rel.estiloLinea]} className="edge-under" />}
+      <BaseEdge id={p.id} path={path} interactionWidth={18} style={{ stroke: rel.color, strokeWidth: ancho, strokeDasharray: DASH[rel.estiloLinea], strokeLinecap: "round", strokeLinejoin: "round" }} />
+      {rel.puntaInicio && cabeza(inicio.x, inicio.y, dirIni)}
+      {rel.puntaFin && cabeza(fin.x, fin.y, dirFin)}
       <EdgeLabelRenderer>
         {disp.centro && (
           <div

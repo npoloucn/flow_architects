@@ -48,7 +48,7 @@ export function InlineDelete({ onConfirm, label = "Eliminar", subject }: { onCon
   );
 }
 
-export function ChipsEditor({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+export function ChipsEditor({ value, onChange, readOnly = false, compact = false }: { value: string[]; onChange: (v: string[]) => void; readOnly?: boolean; compact?: boolean }) {
   const [draft, setDraft] = useState("");
   const add = () => {
     const v = draft.trim();
@@ -56,19 +56,19 @@ export function ChipsEditor({ value, onChange }: { value: string[]; onChange: (v
     setDraft("");
   };
   return (
-    <div className="chips-edit">
+    <div className={`chips-edit${compact ? " compact" : ""}`}>
       <span className="chips">
         {value.length === 0 && <span className="muted">Sin asignar</span>}
         {value.map((r) => (
-          <span key={r} className="chip">{r}<button aria-label={`Quitar a ${r}`} onClick={() => onChange(value.filter((x) => x !== r))}>×</button></span>
+          <span key={r} className="chip">{r}{!readOnly && <button aria-label={`Quitar a ${r}`} onClick={() => onChange(value.filter((x) => x !== r))}>×</button>}</span>
         ))}
       </span>
-      <span className="add-row">
+      {!readOnly && <span className="add-row">
         <input className="inp" value={draft} placeholder="Agregar responsable" aria-label="Agregar responsable"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
         <button className="btn sm" onClick={add} disabled={!draft.trim()}>Agregar</button>
-      </span>
+      </span>}
     </div>
   );
 }

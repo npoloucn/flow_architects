@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useProjectStore } from "../../store/projectStore";
+import { IconClose } from "../icons";
 
 /** Esc cierra el overlay sin llegar al atajo global (captura en window). */
 function useEscClose(active: boolean, close: () => void) {
@@ -83,7 +84,7 @@ function Toast() {
         <div className="toast" key={toast.id}>
           <span>{toast.text}</span>
           {toast.undo && <button className="link-btn" onClick={() => { undo(); hide(); }}>Deshacer</button>}
-          <button className="link-btn" onClick={hide} aria-label="Cerrar aviso">Cerrar</button>
+          <button className="icon-btn toast-x" onClick={hide} aria-label="Cerrar aviso" title="Cerrar aviso"><IconClose /></button>
         </div>
       )}
     </div>

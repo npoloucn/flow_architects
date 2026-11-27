@@ -1,11 +1,11 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useColeccion } from "../../store/coleccionStore";
 import { eliminarDoc, leerDoc, type IndiceProyecto } from "../../persistence/coleccion";
 import { hrefCanvas, irA } from "../../router";
 import { useCanvasStore } from "../../store/canvasStore";
 import { useAuth } from "../../store/authStore";
 import { exportarProyecto, importarProyectoNuevo, pedirDuplicarProyecto, pedirEliminarProyecto, toast } from "../actions";
-import { IconCopy, IconDownload, IconEntrar, IconLink, IconMore, IconPencil, IconPlus, IconTrash, IconUpload } from "../icons";
+import { IconClose, IconCopy, IconDownload, IconEntrar, IconLink, IconMore, IconPencil, IconPlus, IconTrash, IconUpload } from "../icons";
 import { configurado, ETIQUETA_VISIBILIDAD, SIN_BACKEND, type Visibilidad } from "../../lib/supabase";
 import {
   actualizarMeta,
@@ -389,7 +389,7 @@ function ProjectsPageNube() {
   return (
     <main className="page">
       <div className="page-in">
-        {error && <div className="banner warn" role="alert"><p>{error}</p><button className="btn sm" onClick={refrescar}>Reintentar</button></div>}
+        {error && <BannerCerrable key={error} warn role="alert"><p>{error}</p><button className="btn sm" onClick={refrescar}>Reintentar</button></BannerCerrable>}
 
         {pendientesLocales.length > 0 && (
           <div className="banner" role="status">
@@ -527,6 +527,18 @@ function ProjectsPageNube() {
         />
       )}
     </main>
+  );
+}
+
+/** Aviso persistente en pagina con cierre (X) a la derecha. */
+function BannerCerrable({ children, warn = false, role = "status" }: { children: ReactNode; warn?: boolean; role?: "status" | "alert" }) {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+  return (
+    <div className={`banner${warn ? " warn" : ""}`} role={role}>
+      {children}
+      <button type="button" className="icon-btn banner-x" onClick={() => setVisible(false)} aria-label="Cerrar aviso" title="Cerrar aviso"><IconClose /></button>
+    </div>
   );
 }
 

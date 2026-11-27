@@ -154,6 +154,9 @@ export function projectEdges(doc: Proyecto, level: string | null, selectedEdgeId
         lane: laneDe(r),
         salienteS: salienteVertical(doc, r.sourceId, r.puertoInicio),
         salienteT: salienteVertical(doc, r.targetId, r.puertoFin),
+        // Tamaño real de cada tarjeta: el motor de rutas rodea las tarjetas en los desvíos.
+        tamS: nodeSize(doc, r.sourceId),
+        tamT: nodeSize(doc, r.targetId),
       },
     } satisfies Edge;
   });

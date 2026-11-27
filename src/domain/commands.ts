@@ -95,6 +95,68 @@ const esApilada = (r: Relacion, a: Caja, b: Caja) =>
   (r.puertoInicio === "abajo" && r.puertoFin === "arriba" && b.y >= a.y) ||
   (r.puertoInicio === "arriba" && r.puertoFin === "abajo" && a.y >= b.y);
 
+// ---------------- lados automáticos al crear una flecha ----------------
+const NORMAL_PUERTO: Record<Puerto, { x: number; y: number }> = {
+  izquierda: { x: -1, y: 0 }, derecha: { x: 1, y: 0 }, arriba: { x: 0, y: -1 }, abajo: { x: 0, y: 1 },
+};
+
+/** Punto del puerto sobre el borde de la tarjeta. */
+function puntoDePuerto(c: Caja, p: Puerto): { x: number; y: number } {
+  switch (p) {
+    case "izquierda": return { x: c.x, y: c.y + c.h / 2 };
+    case "derecha": return { x: c.x + c.w, y: c.y + c.h / 2 };
+    case "arriba": return { x: c.x + c.w / 2, y: c.y };
+    case "abajo": return { x: c.x + c.w / 2, y: c.y + c.h };
+  }
+}
+
+/**
+ * Par de lados más natural entre dos nodos al crear una flecha (se ignora el handle de origen). Evalúa los
+ * cuatro pares opuestos (derecha→izquierda, izquierda→derecha, abajo→arriba, arriba→abajo) y elige el de menor
+ * costo: distancia entre puertos + penalización si el lado mira en contra del otro nodo o si el destino queda
+ * atrás. Desempata por el eje dominante y, por último, por el orden fijo de la lista (determinista).
+ * Usa los tamaños reales de tarjeta (`frame`/`card`), así que funciona con las vistas completa/compacta/icono.
+ */
+export function puertosAutomaticos(
+  doc: Proyecto, sourceId: string, targetId: string, frame: Frame, card: CardSize,
+): { puertoInicio: Puerto; puertoFin: Puerto } {
+  const porDefecto = { puertoInicio: "derecha" as Puerto, puertoFin: "izquierda" as Puerto };
+  const s = doc.nodos.find((n) => n.id === sourceId);
+  const t = doc.nodos.find((n) => n.id === targetId);
+  if (!s || !t) return porDefecto;
+  const cs = cajaDe(s, s.posicion, frame, card), ct = cajaDe(t, t.posicion, frame, card);
+  const centroS = { x: cs.x + cs.w / 2, y: cs.y + cs.h / 2 };
+  const centroT = { x: ct.x + ct.w / 2, y: ct.y + ct.h / 2 };
+  const ejeDominante: "h" | "v" = Math.abs(centroT.x - centroS.x) >= Math.abs(centroT.y - centroS.y) ? "h" : "v";
+
+  const PENAL_MIRA = 1e6;
+  const PENAL_ATRAS = 1e5;
+  const pares: { pi: Puerto; pf: Puerto; eje: "h" | "v"; orden: number; costo: number }[] = [];
+  const candidatos: [Puerto, Puerto, "h" | "v"][] = [
+    ["derecha", "izquierda", "h"], ["izquierda", "derecha", "h"],
+    ["abajo", "arriba", "v"], ["arriba", "abajo", "v"],
+  ];
+  candidatos.forEach(([pi, pf, eje], orden) => {
+    const a = puntoDePuerto(cs, pi), b = puntoDePuerto(ct, pf);
+    const nA = NORMAL_PUERTO[pi], nB = NORMAL_PUERTO[pf];
+    // El puerto mira en contra si su normal no apunta hacia el centro del otro nodo.
+    const miraContra =
+      nA.x * (centroT.x - a.x) + nA.y * (centroT.y - a.y) <= 0 ||
+      nB.x * (centroS.x - b.x) + nB.y * (centroS.y - b.y) <= 0;
+    const avance = eje === "h"
+      ? (pi === "derecha" ? b.x - a.x : a.x - b.x)
+      : (pi === "abajo" ? b.y - a.y : a.y - b.y);
+    const costo = Math.hypot(b.x - a.x, b.y - a.y) + (miraContra ? PENAL_MIRA : 0) + (avance < 0 ? PENAL_ATRAS : 0);
+    pares.push({ pi, pf, eje, orden, costo });
+  });
+  pares.sort((x, y) => {
+    if (Math.abs(x.costo - y.costo) > 1e-6) return x.costo - y.costo;
+    const ex = x.eje === ejeDominante ? 0 : 1, ey = y.eje === ejeDominante ? 0 : 1;
+    return ex - ey || x.orden - y.orden;
+  });
+  return { puertoInicio: pares[0].pi, puertoFin: pares[0].pf };
+}
+
 /**
  * Acomoda la posición de un nodo para que ninguna flecha vertical que sale o entra de él quede sin tramo visible.
  * Solo mueve el nodo indicado (vertical), respetando su posición horizontal; la separación se resuelve en el orden
@@ -369,7 +431,7 @@ export function eliminarRelacion(doc: Proyecto, id: string): Res {
   return { ok: true, doc: touch({ ...doc, relaciones: doc.relaciones.filter((r) => r.id !== id) }) };
 }
 // ---------------- tareas ----------------
-export type TareaPatch = Partial<Pick<Tarea, "titulo" | "descripcion" | "estado" | "prioridad" | "venceEn">>;
+export type TareaPatch = Partial<Pick<Tarea, "titulo" | "descripcion" | "estado" | "prioridad" | "venceEn" | "responsables">>;
 
 export function crearTarea(doc: Proyecto, nodoId: string, titulo: string, descripcion = ""): Res<{ id: string }> {
   const t = titulo.trim();
@@ -392,6 +454,7 @@ export function actualizarTarea(doc: Proyecto, id: string, patch: TareaPatch): R
     if (!p.titulo) return fail("El título de la tarea no puede estar vacío.");
   }
   if (p.descripcion !== undefined && p.descripcion.length > LIMITE_DESCRIPCION_TAREA) return fail(`La descripción admite hasta ${LIMITE_DESCRIPCION_TAREA} caracteres.`);
+  if (p.responsables) p.responsables = [...new Set(p.responsables.map((r) => r.trim()).filter(Boolean))];
   return { ok: true, doc: touch({ ...doc, tareas: doc.tareas.map((t) => (t.id === id ? { ...t, ...p, actualizadoEn: now() } : t)) }) };
 }
 

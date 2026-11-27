@@ -3,7 +3,7 @@ import { useAuth } from "../../store/authStore";
 import { listarProyectos, type ProyectoNube } from "../../persistence/nube";
 import { hrefCanvas } from "../../router";
 import { ETIQUETA_VISIBILIDAD } from "../../lib/supabase";
-import { IconEntrar, IconLink, IconPlus } from "../icons";
+import { IconClose, IconEntrar, IconLink, IconPlus } from "../icons";
 
 type Modo = "entrar" | "registro" | "enlace" | "recuperar";
 
@@ -99,7 +99,7 @@ export function LoginPage() {
               <input className="inp" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
             </label>
             {(localErr || error) && <p className="err" role="alert">{localErr || error}</p>}
-            {ok && <p className="ok-note" role="status">{ok}</p>}
+            {ok && <p className="ok-note" role="status"><span>{ok}</span><button type="button" className="icon-btn banner-x" onClick={() => setOk(null)} aria-label="Cerrar aviso" title="Cerrar aviso"><IconClose /></button></p>}
             <div className="dialog-actions">
               <button type="submit" className="btn primary" disabled={ocupado}>{ocupado ? "Guardando..." : "Guardar contrasena"}</button>
             </div>
@@ -132,7 +132,7 @@ export function LoginPage() {
               </label>
             )}
             {(localErr || error) && <p className="err" role="alert">{localErr || error}</p>}
-            {ok && <p className="ok-note" role="status">{ok}</p>}
+            {ok && <p className="ok-note" role="status"><span>{ok}</span><button type="button" className="icon-btn banner-x" onClick={() => setOk(null)} aria-label="Cerrar aviso" title="Cerrar aviso"><IconClose /></button></p>}
             <div className="dialog-actions">
               {modo !== "entrar" && <button type="button" className="btn" onClick={() => cambiar("entrar")}>Volver</button>}
               <button type="submit" className="btn primary" disabled={ocupado}>

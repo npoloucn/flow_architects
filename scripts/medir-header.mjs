@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Mide la barra superior en varios anchos y temas (sin Supabase real).
  *   node scripts/medir-header.mjs            (arranca su propio vite con env falsas en :5199)
  * Comprueba: ningun par de controles se intersecta, sin scroll horizontal, nav y "Salir" visibles y clicables.
@@ -76,8 +76,8 @@ for (const tema of ["oscuro", "claro"]) {
     log(m.solapes.length === 0, `${tag} solapes=${m.solapes.join("; ") || "ninguno"} (${m.n} controles)`);
     log(m.fuera.length === 0, `${tag} dentro de la barra/viewport ${m.fuera.join(",")}`);
     log(m.sw <= m.cw && m.barSw <= m.barCw, `${tag} sin scroll horizontal (doc ${m.sw}/${m.cw}, barra ${m.barSw}/${m.barCw}) alto=${m.alto} ${m.truncado.join(" ")}`);
-    log(m.nav.length === 3 && m.nav.every(Boolean), `${tag} navegacion visible`);
-    for (const s of [".mainnav a:nth-child(1)", ".mainnav a:nth-child(2)", ".mainnav a:nth-child(3)"]) {
+    log(m.nav.length === 4 && m.nav.every(Boolean), `${tag} navegacion visible`);
+    for (const s of [".mainnav a:nth-child(1)", ".mainnav a:nth-child(2)", ".mainnav a:nth-child(3)", ".mainnav a:nth-child(4)"]) {
       if (!(await clicable(page, s))) log(false, `${tag} ${s} no clicable`);
     }
     // menu de usuario -> salir

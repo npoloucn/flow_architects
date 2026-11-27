@@ -7,6 +7,8 @@ import { IconTile } from "../nodeIcons";
 import { Dot, EstadoDot, EstadoPill } from "../common/StatusBadge";
 import { DescripcionExpandible } from "../common/TaskDescription";
 import { irANodo, report } from "../actions";
+import { ChipsEditor } from "../panels/editors";
+import { IconPencil } from "../icons";
 import { hrefCanvas, irA } from "../../router";
 
 type Prio = Tarea["prioridad"];
@@ -48,6 +50,38 @@ function Camino({ camino, onIr }: { camino: Nodo[]; onIr: () => void }) {
   );
 }
 
+/** Responsables de la fila: lectura compacta y edicion inline (oculta en solo lectura). */
+function RespCell({ t }: { t: Tarea }) {
+  const lectura = useProjectStore((s) => s.modo) === "lectura";
+  const [editando, setEditando] = useState(false);
+  const actualizar = (v: string[]) => report(useProjectStore.getState().actualizarTarea(t.id, { responsables: v }));
+  if (editando && !lectura) {
+    return (
+      <div role="cell" className="tcell-resp editing">
+        <ChipsEditor compact value={t.responsables} onChange={actualizar} />
+        <button type="button" className="btn sm" onClick={() => setEditando(false)}>Listo</button>
+      </div>
+    );
+  }
+  const texto = t.responsables.join(", ");
+  if (lectura) {
+    return (
+      <div role="cell" className="tcell-resp" title="Solo lectura: inicia sesión con permiso para asignar responsables">
+        <span className="resp-text">{texto || <span className="muted">Sin asignar</span>}</span>
+        <span className="sr-only">Solo lectura: inicia sesión con permiso para asignar responsables</span>
+      </div>
+    );
+  }
+  return (
+    <div role="cell" className="tcell-resp">
+      <button type="button" className="resp-btn" onClick={() => setEditando(true)} aria-label={`${texto ? `Responsables: ${texto}. ` : "Sin responsables. "}Editar responsables de ${t.titulo}`} title="Editar responsables">
+        <span className="resp-text">{texto || <span className="muted">Asignar</span>}</span>
+        <IconPencil />
+      </button>
+    </div>
+  );
+}
+
 function FilaTarea({ f, porNodo }: { f: Fila; porNodo: boolean }) {
   const ciclar = useProjectStore.getState().ciclarTarea;
   const { t } = f;
@@ -63,7 +97,7 @@ function FilaTarea({ f, porNodo }: { f: Fila; porNodo: boolean }) {
       </div>
       {!porNodo && <div role="cell" className="tcell-path"><Camino camino={f.camino} onIr={() => irANodo(t.nodoId)} /></div>}
       <div role="cell"><span className={`prio prio-${t.prioridad}`}>{t.prioridad[0].toUpperCase() + t.prioridad.slice(1)}</span></div>
-      <div role="cell" className="tcell-resp" title={t.responsables.join(", ")}>{t.responsables.join(", ") || <span className="muted">Sin asignar</span>}</div>
+      <RespCell t={t} />
       <div role="cell" className="tcell-due">
         {t.venceEn ? (
           <>

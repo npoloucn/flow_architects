@@ -15,7 +15,7 @@ import { Breadcrumb } from "./Breadcrumb";
 import { ZonesLayer } from "./ZonesLayer";
 import { ZoomControls } from "./ZoomControls";
 import { IconEntrar } from "../icons";
-import { PUERTO_DE_HANDLE, MINIMAP_RESERVA, MAX_ZOOM, MIN_ZOOM, fitVp, levelBounds, nodeRect, projectEdges, projectNodes, type FlowNode } from "./geometry";
+import { MINIMAP_RESERVA, MAX_ZOOM, MIN_ZOOM, fitVp, levelBounds, nodeRect, projectEdges, projectNodes, type FlowNode } from "./geometry";
 
 const nodeTypes: NodeTypes = { flow: FlowNodeView };
 const edgeTypes: EdgeTypes = { typed: TypedEdge };
@@ -234,8 +234,9 @@ export function FlowCanvas() {
     return () => window.removeEventListener("fa-fit", h);
   }, [fit]);
 
+  // Los lados de la flecha se eligen automáticamente entre los dos nodos (el handle de origen no decide el lado).
   const onConnect = useCallback((c: Connection) => {
-    if (c.source && c.target && c.source !== c.target) crearRelacionDesde(c.source, c.target, PUERTO_DE_HANDLE[c.sourceHandle ?? "r"], PUERTO_DE_HANDLE[c.targetHandle ?? "l"]);
+    if (c.source && c.target && c.source !== c.target) crearRelacionDesde(c.source, c.target);
   }, []);
   // Soltar sobre el cuerpo de un nodo (no solo sobre su handle) también conecta.
   const onConnectEnd: OnConnectEnd = useCallback((event, state) => {
@@ -243,15 +244,7 @@ export function FlowCanvas() {
     const pt = "changedTouches" in event ? event.changedTouches[0] : event;
     const el = document.elementFromPoint(pt.clientX, pt.clientY)?.closest(".flowlayer .react-flow__node") as HTMLElement | null;
     const source = state.fromNode?.id;
-    if (el?.dataset.id && source && el.dataset.id !== source) {
-      // suelta sobre el cuerpo del nodo: entra por el lado que mira hacia el nodo de origen
-      const r = el.getBoundingClientRect();
-      const so = document.querySelector(`.flowlayer .react-flow__node[data-id="${source}"]`)?.getBoundingClientRect();
-      const nx = so ? (so.left + so.width / 2 - (r.left + r.width / 2)) / r.width : (pt.clientX - (r.left + r.width / 2)) / r.width;
-      const ny = so ? (so.top + so.height / 2 - (r.top + r.height / 2)) / r.height : (pt.clientY - (r.top + r.height / 2)) / r.height;
-      const pf = Math.abs(nx) >= Math.abs(ny) ? (nx < 0 ? "izquierda" : "derecha") : ny < 0 ? "arriba" : "abajo";
-      crearRelacionDesde(source, el.dataset.id, PUERTO_DE_HANDLE[state.fromHandle?.id ?? "r"], pf);
-    }
+    if (el?.dataset.id && source && el.dataset.id !== source) crearRelacionDesde(source, el.dataset.id);
   }, []);
   const onConnectStart: OnConnectStart = useCallback(() => useCanvasStore.getState().closeMenu(), []);
 

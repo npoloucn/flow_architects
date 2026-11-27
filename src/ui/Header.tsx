@@ -1,10 +1,10 @@
-﻿import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useProjectStore } from "../store/projectStore";
 import { useCanvasStore } from "../store/canvasStore";
 import { useAuth } from "../store/authStore";
 import { configurado } from "../lib/supabase";
 import { esIdNube } from "../persistence/nube";
-import { hrefCanvas, hrefProyectos, hrefTareas, type Route } from "../router";
+import { hrefCanvas, hrefDocumentacion, hrefProyectos, hrefTareas, type Route } from "../router";
 import { exportar, importarArchivo } from "./actions";
 import { IconDownload, IconLink, IconLogout, IconMoon, IconMore, IconRedo, IconSun, IconUndo, IconUpload } from "./icons";
 import { ProjectDialog } from "./projects/ProjectDialog";
@@ -116,6 +116,7 @@ export function Header({ route }: { route: Route }) {
         <a href={hrefProyectos()} aria-current={cur("proyectos")}>Proyectos</a>
         {enProyecto && <a href={hrefCanvas(doc!.id)} aria-current={cur("canvas")}>Canvas</a>}
         {enProyecto && <a href={hrefTareas(doc!.id)} aria-current={cur("tareas")}>Tareas <span className="count">{abiertas}</span></a>}
+        {enProyecto && <a href={hrefDocumentacion(doc!.id)} aria-current={cur("documentacion")} aria-label={`Documentación, ${doc!.documentos.length}`}><span className="nav-full">Documentación</span><span className="nav-short" aria-hidden="true">Docs</span> <span className="count">{doc!.documentos.length}</span></a>}
       </nav>
       <div className="bar-actions">
         {enNube && (
